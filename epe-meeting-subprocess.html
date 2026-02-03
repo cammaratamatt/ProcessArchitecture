@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EPE Meeting Subprocess</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    const EPEMeetingSubprocess = () => {
+      const [selectedItem, setSelectedItem] = useState(null);
+      const [selectedType, setSelectedType] = useState(null);
+      const [connecting, setConnecting] = useState(null);
+
+      // EPE Meeting Subprocess Model
+      const [processModel, setProcessModel] = useState({
+        metadata: {
+          name: 'EPE Meeting',
+          fullName: 'Expansion Planning & Execution Session',
+          description: 'Monthly team call to review accounts and plan engagement activities',
+          duration: '60-90 minutes',
+          participants: ['AE', 'AE Manager', 'Presales', 'Customer Success', 'CS Manager (optional)']
+        },
+
+        // Participants / Swim Lanes
+        lanes: [
+          { id: 'facilitator', name: 'Facilitator (AE Manager)', color: '#f59e0b' },
+          { id: 'team', name: 'Account Team', color: '#3b82f6' },
+          { id: 'system', name: 'System / Display', color: '#6b7280' }
+        ],
+
+        activities: [
+          // Start
+          {
+            id: 'start',
+            type: 'event',
+            eventType: 'start',
+            name: 'Session Start',
+            lane: 'facilitator',
+            position: { x: 60, y: 150 },
+            description: 'EPE meeting begins'
+          },
+
+          // Phase 1: Open Activities Review
+          {
+            id: 'display_overdue',
+            type: 'system',
+            name: 'Display Open Activities',
+            lane: 'system',
+            position: { x: 160, y: 300 },
+            description: 'Surface all open/overdue activities across AE portfolio',
+            systemActions: ['Query activity backlog', 'Filter by AE', 'Sort by due date', 'Highlight overdue'],
+            dataOutputs: ['Activity list with status', 'Overdue count', 'Accounts affected']
+          },
+          {
+            id: 'review_overdue',
+            type: 'human',
+            name: 'Review Open Items',
+            lane: 'team',
+            position: { x: 280, y: 150 },
+            description: 'Quick status check on each open/overdue activity',
+            taskType: 'review',
+            duration: '10-15 min',
+            assignment: { type: 'group', value: 'Account Team' },
+            formFields: ['Activity status update', 'Blockers', 'Reassignment needed?'],
+            talkingPoints: [
+              'What\'s the status on this?',
+              'Any blockers we can help with?',
+              'Does this need to be reassigned?',
+              'Should we escalate?'
+            ]
+          },
+          {
+            id: 'decision_overdue_action',
+            type: 'decision',
+            name: 'Action Needed?',
+            lane: 'facilitator',
+            position: { x: 400, y: 150 },
+            description: 'Determine if activity needs intervention',
+            conditions: [
+              { label: 'Reassign', target: 'reassign_activity' },
+              { label: 'Escalate', target: 'escalate_activity' },
+              { label: 'On Track', target: 'decision_more_overdue' }
+            ]
+          },
+          {
+            id: 'reassign_activity',
+            type: 'human',
+            name: 'Reassign Activity',
+            lane: 'facilitator',
+            position: { x: 520, y: 80 },
+            description: 'Change owner and/or due date',
+            taskType: 'assign',
+            assignment: { type: 'role', value: 'Facilitator' },
+            formFields: ['New owner', 'New due date', 'Notes']
+          },
+          {
+            id: 'escalate_activity',
+            type: 'human',
+            name: 'Note Escalation',
+            lane: 'facilitator',
+            position: { x: 520, y: 220 },
+            description: 'Flag for leadership attention',
+            taskType: 'execute',
+            assignment: { type: 'role', value: 'Facilitator' },
+            formFields: ['Escalation reason', 'Requested action']
+          },
+          {
+            id: 'decision_more_overdue',
+            type: 'decision',
+            name: 'More Items?',
+            lane: 'facilitator',
+            position: { x: 640, y: 150 },
+            description: 'Check if more open activities to review',
+            conditions: [
+              { label: 'Yes', target: 'review_overdue' },
+              { label: 'No', target: 'transition_to_accounts' }
+            ]
+          },
+          {
+            id: 'transition_to_accounts',
+            type: 'event',
+            eventType: 'intermediate',
+            name: 'Move to Accounts',
+            lane: 'facilitator',
+            position: { x: 760, y: 150 },
+            description: 'Transition from activity review to account deep-dives'
+          },
+
+          // Phase 2: Account Reviews (repeated for 2-3 accounts)
+          {
+            id: 'display_account_prep',
+            type: 'system',
+            name: 'Display Account Prep',
+            lane: 'system',
+            position: { x: 880, y: 300 },
+            description: 'Show AI-generated prep for current account',
+            systemActions: ['Load account summary', 'Display observations', 'Show recommended plays', 'Surface telemetry'],
+            dataOutputs: ['Account summary', 'Observations', 'Recommended plays', 'Health indicators']
+          },
+          {
+            id: 'status_round',
+            type: 'human',
+            name: 'Status Round',
+            lane: 'team',
+            position: { x: 920, y: 150 },
+            description: 'Each team member shares recent interactions and intel',
+            taskType: 'discuss',
+            duration: '3-5 min',
+            assignment: { type: 'group', value: 'Account Team' },
+            talkingPoints: [
+              'AE: Recent conversations, pipeline updates',
+              'CS: Support issues, adoption trends, health',
+              'Presales: Technical discussions, POC status',
+              'Manager: Executive relationships, strategic context'
+            ]
+          },
+          {
+            id: 'review_telemetry',
+            type: 'human',
+            name: 'Review Data & Observations',
+            lane: 'team',
+            position: { x: 1060, y: 150 },
+            description: 'Walk through telemetry and AI observations together',
+            taskType: 'review',
+            duration: '3-5 min',
+            assignment: { type: 'group', value: 'Account Team' },
+            talkingPoints: [
+              'What does usage tell us?',
+              'Any surprising patterns?',
+              'Do the AI observations match our experience?',
+              'What\'s missing from this picture?'
+            ]
+          },
+          {
+            id: 'discuss_plays',
+            type: 'human',
+            name: 'Discuss Recommended Plays',
+            lane: 'team',
+            position: { x: 1200, y: 150 },
+            description: 'Review suggested engagement tactics',
+            taskType: 'discuss',
+            duration: '2-3 min',
+            assignment: { type: 'group', value: 'Account Team' },
+            talkingPoints: [
+              'Do these plays make sense for this account?',
+              'What\'s worked before with this customer?',
+              'Any plays we should add or remove?',
+              'What\'s our capacity to execute?'
+            ]
+          },
+          {
+            id: 'define_initiative',
+            type: 'human',
+            name: 'Define Initiative',
+            lane: 'facilitator',
+            position: { x: 1340, y: 150 },
+            description: 'Leader articulates the strategic initiative for this account',
+            taskType: 'decide',
+            duration: '2-3 min',
+            assignment: { type: 'role', value: 'Facilitator' },
+            formFields: ['Initiative name', 'Goal/outcome', 'Success criteria', 'Timeline'],
+            examples: [
+              'Expand from R&D to Sales & Marketing',
+              'Stabilize at-risk renewal',
+              'Drive adoption of new feature set',
+              'Re-engage dormant champion'
+            ]
+          },
+          {
+            id: 'assign_activities',
+            type: 'human',
+            name: 'Assign Activities',
+            lane: 'facilitator',
+            position: { x: 1480, y: 150 },
+            description: 'Create specific activities with owners and due dates',
+            taskType: 'assign',
+            duration: '3-5 min',
+            assignment: { type: 'role', value: 'Facilitator' },
+            formFields: ['Activity description', 'Owner', 'Due date', 'Play (if applicable)', 'Notes'],
+            playOptions: [
+              'Check-in call',
+              'Roadmap discussion',
+              'Business review',
+              'Executive sponsor meeting',
+              'Technical workshop',
+              'Training session',
+              'Success planning',
+              'Expansion discovery',
+              'Reference program invite',
+              'User group invite',
+              'On-site visit',
+              'Custom activity'
+            ]
+          },
+          {
+            id: 'capture_activities',
+            type: 'system',
+            name: 'Capture Activities',
+            lane: 'system',
+            position: { x: 1480, y: 300 },
+            description: 'Record activities in real-time',
+            systemActions: ['Create activity records', 'Link to account', 'Set reminders', 'Update backlog']
+          },
+          {
+            id: 'decision_more_accounts',
+            type: 'decision',
+            name: 'More Accounts?',
+            lane: 'facilitator',
+            position: { x: 1620, y: 150 },
+            description: 'Check if more accounts to review this session',
+            conditions: [
+              { label: 'Yes', target: 'display_account_prep' },
+              { label: 'No', target: 'wrap_up' }
+            ]
+          },
+
+          // Phase 3: Wrap-up
+          {
+            id: 'wrap_up',
+            type: 'human',
+            name: 'Session Wrap-up',
+            lane: 'facilitator',
+            position: { x: 1760, y: 150 },
+            description: 'Summarize decisions and confirm next steps',
+            taskType: 'review',
+            duration: '5 min',
+            assignment: { type: 'role', value: 'Facilitator' },
+            talkingPoints: [
+              'Recap activities assigned today',
+              'Any cross-account patterns noticed?',
+              'Anything to flag for leadership?',
+              'Confirm next EPE date'
+            ]
+          },
+          {
+            id: 'end',
+            type: 'event',
+            eventType: 'end',
+            name: 'Session End',
+            lane: 'facilitator',
+            position: { x: 1880, y: 150 },
+            description: 'EPE meeting complete'
+          }
+        ],
+
+        connections: [
+          { id: 'c1', from: 'start', to: 'display_overdue', type: 'hard' },
+          { id: 'c2', from: 'display_overdue', to: 'review_overdue', type: 'hard' },
+          { id: 'c3', from: 'review_overdue', to: 'decision_overdue_action', type: 'hard' },
+          { id: 'c4', from: 'decision_overdue_action', to: 'reassign_activity', type: 'hard', label: 'Reassign' },
+          { id: 'c5', from: 'decision_overdue_action', to: 'escalate_activity', type: 'hard', label: 'Escalate' },
+          { id: 'c6', from: 'decision_overdue_action', to: 'decision_more_overdue', type: 'hard', label: 'OK' },
+          { id: 'c7', from: 'reassign_activity', to: 'decision_more_overdue', type: 'hard' },
+          { id: 'c8', from: 'escalate_activity', to: 'decision_more_overdue', type: 'hard' },
+          { id: 'c9', from: 'decision_more_overdue', to: 'review_overdue', type: 'soft', label: 'More' },
+          { id: 'c10', from: 'decision_more_overdue', to: 'transition_to_accounts', type: 'hard', label: 'Done' },
+          { id: 'c11', from: 'transition_to_accounts', to: 'display_account_prep', type: 'hard' },
+          { id: 'c12', from: 'display_account_prep', to: 'status_round', type: 'hard' },
+          { id: 'c13', from: 'status_round', to: 'review_telemetry', type: 'hard' },
+          { id: 'c14', from: 'review_telemetry', to: 'discuss_plays', type: 'hard' },
+          { id: 'c15', from: 'discuss_plays', to: 'define_initiative', type: 'hard' },
+          { id: 'c16', from: 'define_initiative', to: 'assign_activities', type: 'hard' },
+          { id: 'c17', from: 'assign_activities', to: 'capture_activities', type: 'hard' },
+          { id: 'c18', from: 'assign_activities', to: 'decision_more_accounts', type: 'hard' },
+          { id: 'c19', from: 'decision_more_accounts', to: 'display_account_prep', type: 'soft', label: 'Next Account' },
+          { id: 'c20', from: 'decision_more_accounts', to: 'wrap_up', type: 'hard', label: 'Done' },
+          { id: 'c21', from: 'wrap_up', to: 'end', type: 'hard' }
+        ],
+
+        // Data objects used during meeting
+        dataObjects: [
+          {
+            id: 'data_backlog',
+            name: 'Activity Backlog',
+            icon: '✅',
+            position: { x: 200, y: 400 }
+          },
+          {
+            id: 'data_prep',
+            name: 'Account Prep',
+            icon: '📋',
+            position: { x: 920, y: 400 }
+          },
+          {
+            id: 'data_plays',
+            name: 'Play Library',
+            icon: '📚',
+            position: { x: 1200, y: 400 }
+          }
+        ]
+      });
+
+      // Config
+      const activityTypeConfig = {
+        event: { color: '#ec4899', shape: 'circle' },
+        human: { color: '#3b82f6', shape: 'rectangle' },
+        system: { color: '#6b7280', shape: 'rectangle' },
+        decision: { color: '#f59e0b', shape: 'diamond' }
+      };
+
+      const connectionTypeConfig = {
+        hard: { color: '#ef4444', dash: '', label: 'Hard' },
+        soft: { color: '#f59e0b', dash: '6,3', label: 'Soft' },
+        informational: { color: '#3b82f6', dash: '3,3', label: 'Info' }
+      };
+
+      // Helpers
+      const getActivityById = (id) => processModel.activities.find(a => a.id === id);
+      const getLaneById = (id) => processModel.lanes.find(l => l.id === id);
+
+      const updateActivity = (id, updates) => {
+        setProcessModel(prev => ({
+          ...prev,
+          activities: prev.activities.map(a => a.id === id ? { ...a, ...updates } : a)
+        }));
+        if (selectedItem?.id === id) setSelectedItem(prev => ({ ...prev, ...updates }));
+      };
+
+      // Drag handler
+      const handleActivityMouseDown = (e, activity) => {
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startPos = { ...activity.position };
+
+        const handleMove = (moveE) => {
+          const dx = moveE.clientX - startX;
+          const dy = moveE.clientY - startY;
+          updateActivity(activity.id, {
+            position: { x: startPos.x + dx, y: startPos.y + dy }
+          });
+        };
+
+        const handleUp = () => {
+          document.removeEventListener('mousemove', handleMove);
+          document.removeEventListener('mouseup', handleUp);
+        };
+
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleUp);
+      };
+
+      // Render swim lanes
+      const renderLanes = () => {
+        const laneHeight = 120;
+        const laneY = {
+          facilitator: 80,
+          team: 80 + laneHeight,
+          system: 80 + laneHeight * 2
+        };
+
+        return processModel.lanes.map((lane, i) => (
+          <g key={lane.id}>
+            <rect
+              x="0"
+              y={laneY[lane.id]}
+              width="2000"
+              height={laneHeight}
+              fill={lane.color + '08'}
+              stroke={lane.color + '30'}
+              strokeWidth="1"
+            />
+            <rect
+              x="0"
+              y={laneY[lane.id]}
+              width="120"
+              height={laneHeight}
+              fill={lane.color + '15'}
+            />
+            <text
+              x="10"
+              y={laneY[lane.id] + laneHeight / 2}
+              fill={lane.color}
+              fontSize="10"
+              fontFamily="'JetBrains Mono', monospace"
+              fontWeight="600"
+              style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+              transform={`rotate(180, 15, ${laneY[lane.id] + laneHeight / 2})`}
+            >
+              {lane.name}
+            </text>
+          </g>
+        ));
+      };
+
+      // Render activities
+      const renderActivities = () => {
+        return processModel.activities.map(activity => {
+          const config = activityTypeConfig[activity.type];
+          const lane = getLaneById(activity.lane);
+          const x = activity.position.x;
+          const y = activity.position.y;
+          const isSelected = selectedItem?.id === activity.id && selectedType === 'activity';
+
+          const baseProps = {
+            fill: isSelected ? config.color + '40' : config.color + '20',
+            stroke: config.color,
+            strokeWidth: isSelected ? 3 : 2,
+            style: { cursor: 'move' }
+          };
+
+          let shape;
+          let labelY = y + 4;
+
+          switch (activity.type) {
+            case 'event':
+              const isStart = activity.eventType === 'start';
+              const isEnd = activity.eventType === 'end';
+              shape = (
+                <g>
+                  <circle cx={x} cy={y} r="20" {...baseProps} />
+                  {isEnd && <circle cx={x} cy={y} r="16" fill="none" stroke={config.color} strokeWidth="3" />}
+                </g>
+              );
+              break;
+
+            case 'human':
+              shape = (
+                <g>
+                  <rect x={x-50} y={y-25} width="100" height="50" rx="4" {...baseProps} />
+                  <circle cx={x-35} cy={y-8} r="6" fill={config.color} opacity="0.5" />
+                  <path d={`M${x-41},${y+3} Q${x-35},${y-4} ${x-29},${y+3} L${x-29},${y+12} L${x-41},${y+12} Z`} fill={config.color} opacity="0.5" />
+                </g>
+              );
+              break;
+
+            case 'system':
+              shape = (
+                <g>
+                  <rect x={x-50} y={y-25} width="100" height="50" rx="4" {...baseProps} />
+                  <circle cx={x-35} cy={y} r="8" fill="none" stroke={config.color} strokeWidth="1.5" opacity="0.5" />
+                  {[0, 60, 120, 180, 240, 300].map(angle => (
+                    <line 
+                      key={angle}
+                      x1={x-35 + 5*Math.cos(angle*Math.PI/180)} 
+                      y1={y + 5*Math.sin(angle*Math.PI/180)}
+                      x2={x-35 + 8*Math.cos(angle*Math.PI/180)} 
+                      y2={y + 8*Math.sin(angle*Math.PI/180)}
+                      stroke={config.color} 
+                      strokeWidth="1.5"
+                      opacity="0.5"
+                    />
+                  ))}
+                </g>
+              );
+              break;
+
+            case 'decision':
+              shape = (
+                <polygon 
+                  points={`${x},${y-28} ${x+35},${y} ${x},${y+28} ${x-35},${y}`}
+                  {...baseProps}
+                />
+              );
+              break;
+
+            default:
+              shape = <rect x={x-50} y={y-25} width="100" height="50" rx="4" {...baseProps} />;
+          }
+
+          return (
+            <g 
+              key={activity.id}
+              onMouseDown={(e) => handleActivityMouseDown(e, activity)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedItem(activity);
+                setSelectedType('activity');
+              }}
+            >
+              {shape}
+              <text
+                x={x}
+                y={y + (activity.type === 'event' ? 4 : 6)}
+                textAnchor="middle"
+                fill="#e0e0e0"
+                fontSize="9"
+                fontFamily="'JetBrains Mono', monospace"
+                style={{ pointerEvents: 'none' }}
+              >
+                {activity.name.length > 14 ? activity.name.slice(0, 12) + '..' : activity.name}
+              </text>
+              {activity.duration && (
+                <text
+                  x={x}
+                  y={y + 35}
+                  textAnchor="middle"
+                  fill="#666"
+                  fontSize="8"
+                  fontFamily="'JetBrains Mono', monospace"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  {activity.duration}
+                </text>
+              )}
+            </g>
+          );
+        });
+      };
+
+      // Render connections
+      const renderConnections = () => {
+        return processModel.connections.map(conn => {
+          const from = getActivityById(conn.from);
+          const to = getActivityById(conn.to);
+          if (!from || !to) return null;
+
+          const connConfig = connectionTypeConfig[conn.type] || connectionTypeConfig.hard;
+          
+          const getOffset = (act, side) => {
+            if (act.type === 'event') return side === 'right' ? 20 : -20;
+            if (act.type === 'decision') return side === 'right' ? 35 : -35;
+            return side === 'right' ? 50 : -50;
+          };
+
+          const x1 = from.position.x + getOffset(from, 'right');
+          const y1 = from.position.y;
+          const x2 = to.position.x + getOffset(to, 'left');
+          const y2 = to.position.y;
+
+          // Handle different connection routing
+          let path;
+          if (Math.abs(y2 - y1) > 50) {
+            // Vertical routing
+            const midX = (x1 + x2) / 2;
+            path = `M${x1},${y1} L${midX},${y1} L${midX},${y2} L${x2},${y2}`;
+          } else {
+            // Curved horizontal
+            const midX = (x1 + x2) / 2;
+            path = `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`;
+          }
+
+          const isSelected = selectedItem?.id === conn.id && selectedType === 'connection';
+
+          return (
+            <g key={conn.id} 
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setSelectedItem(conn);
+                 setSelectedType('connection');
+               }}
+               style={{ cursor: 'pointer' }}>
+              <path
+                d={path}
+                fill="none"
+                stroke={isSelected ? '#fff' : connConfig.color}
+                strokeWidth={isSelected ? 2.5 : 1.5}
+                strokeDasharray={connConfig.dash}
+                opacity={isSelected ? 1 : 0.6}
+              />
+              <polygon
+                points={`${x2},${y2} ${x2-6},${y2-3} ${x2-6},${y2+3}`}
+                fill={isSelected ? '#fff' : connConfig.color}
+              />
+              {conn.label && (
+                <text
+                  x={(x1 + x2) / 2}
+                  y={Math.min(y1, y2) - 5}
+                  textAnchor="middle"
+                  fill={connConfig.color}
+                  fontSize="8"
+                  fontFamily="'JetBrains Mono', monospace"
+                >
+                  {conn.label}
+                </text>
+              )}
+              <path d={path} fill="none" stroke="transparent" strokeWidth="12" />
+            </g>
+          );
+        });
+      };
+
+      // Render data objects
+      const renderDataObjects = () => {
+        return processModel.dataObjects.map(obj => (
+          <g key={obj.id}
+             onClick={(e) => {
+               e.stopPropagation();
+               setSelectedItem(obj);
+               setSelectedType('dataObject');
+             }}
+             style={{ cursor: 'pointer' }}>
+            <rect
+              x={obj.position.x - 35}
+              y={obj.position.y - 20}
+              width="70"
+              height="40"
+              rx="4"
+              fill={selectedItem?.id === obj.id ? '#ffffff15' : '#ffffff08'}
+              stroke="#555"
+              strokeWidth="1"
+              strokeDasharray="4,2"
+            />
+            <text x={obj.position.x} y={obj.position.y - 2} textAnchor="middle" fontSize="14">{obj.icon}</text>
+            <text
+              x={obj.position.x}
+              y={obj.position.y + 12}
+              textAnchor="middle"
+              fill="#888"
+              fontSize="8"
+              fontFamily="'JetBrains Mono', monospace"
+            >
+              {obj.name}
+            </text>
+          </g>
+        ));
+      };
+
+      // Render phase labels
+      const renderPhaseLabels = () => {
+        const phases = [
+          { label: 'Phase 1: Activity Review', x: 350, color: '#f59e0b' },
+          { label: 'Phase 2: Account Reviews (×2-3)', x: 1150, color: '#3b82f6' },
+          { label: 'Phase 3: Wrap-up', x: 1800, color: '#10b981' }
+        ];
+
+        return phases.map((phase, i) => (
+          <g key={i}>
+            <text
+              x={phase.x}
+              y="50"
+              textAnchor="middle"
+              fill={phase.color}
+              fontSize="12"
+              fontFamily="'JetBrains Mono', monospace"
+              fontWeight="600"
+            >
+              {phase.label}
+            </text>
+            <line
+              x1={phase.x - 100}
+              y1="60"
+              x2={phase.x + 100}
+              y2="60"
+              stroke={phase.color}
+              strokeWidth="2"
+              opacity="0.3"
+            />
+          </g>
+        ));
+      };
+
+      // Detail Panel
+      const DetailPanel = () => {
+        if (!selectedItem) {
+          return (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#555' }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.4 }}>◎</div>
+              <p>Select an activity to view details</p>
+            </div>
+          );
+        }
+
+        if (selectedType === 'activity') {
+          const activity = selectedItem;
+          const config = activityTypeConfig[activity.type];
+
+          return (
+            <div style={{ padding: '14px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '16px',
+                paddingBottom: '12px',
+                borderBottom: `2px solid ${config.color}`
+              }}>
+                <span style={{
+                  padding: '3px 8px',
+                  background: config.color,
+                  color: '#000',
+                  borderRadius: '4px',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                  fontFamily: "'JetBrains Mono', monospace"
+                }}>{activity.type.toUpperCase()}</span>
+                {activity.taskType && (
+                  <span style={{
+                    padding: '3px 8px',
+                    background: config.color + '40',
+                    color: config.color,
+                    borderRadius: '4px',
+                    fontSize: '9px',
+                    fontFamily: "'JetBrains Mono', monospace"
+                  }}>{activity.taskType}</span>
+                )}
+              </div>
+
+              <h3 style={{ fontSize: '14px', marginBottom: '8px', color: '#e0e0e0' }}>{activity.name}</h3>
+              <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '16px', lineHeight: '1.5' }}>{activity.description}</p>
+
+              {activity.duration && (
+                <div style={{ marginBottom: '12px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '9px', color: '#666' }}>DURATION: </span>
+                  <span style={{ fontSize: '11px', color: '#e0e0e0' }}>{activity.duration}</span>
+                </div>
+              )}
+
+              {activity.assignment && (
+                <div style={{ marginBottom: '12px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '9px', color: '#666' }}>ASSIGNED TO: </span>
+                  <span style={{ fontSize: '11px', color: '#e0e0e0' }}>{activity.assignment.value}</span>
+                </div>
+              )}
+
+              {activity.talkingPoints && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>TALKING POINTS</div>
+                  <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                    {activity.talkingPoints.map((point, i) => (
+                      <li key={i} style={{ fontSize: '11px', color: '#aaa', marginBottom: '4px' }}>{point}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activity.formFields && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>INPUTS / FIELDS</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {activity.formFields.map((field, i) => (
+                      <span key={i} style={{
+                        padding: '3px 8px',
+                        background: 'rgba(59,130,246,0.2)',
+                        color: '#3b82f6',
+                        borderRadius: '4px',
+                        fontSize: '10px'
+                      }}>{field}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activity.playOptions && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>AVAILABLE PLAYS</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {activity.playOptions.map((play, i) => (
+                      <span key={i} style={{
+                        padding: '3px 8px',
+                        background: 'rgba(139,92,246,0.2)',
+                        color: '#8b5cf6',
+                        borderRadius: '4px',
+                        fontSize: '9px'
+                      }}>{play}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activity.examples && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>EXAMPLES</div>
+                  <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                    {activity.examples.map((ex, i) => (
+                      <li key={i} style={{ fontSize: '10px', color: '#888', marginBottom: '3px', fontStyle: 'italic' }}>{ex}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activity.systemActions && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>SYSTEM ACTIONS</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {activity.systemActions.map((action, i) => (
+                      <span key={i} style={{
+                        padding: '3px 8px',
+                        background: 'rgba(107,114,128,0.2)',
+                        color: '#9ca3af',
+                        borderRadius: '4px',
+                        fontSize: '10px'
+                      }}>{action}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activity.dataOutputs && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>DATA OUTPUTS</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {activity.dataOutputs.map((output, i) => (
+                      <span key={i} style={{
+                        padding: '3px 8px',
+                        background: 'rgba(16,185,129,0.2)',
+                        color: '#10b981',
+                        borderRadius: '4px',
+                        fontSize: '10px'
+                      }}>{output}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        if (selectedType === 'dataObject') {
+          return (
+            <div style={{ padding: '14px' }}>
+              <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #555' }}>
+                <span style={{ fontSize: '20px', marginRight: '8px' }}>{selectedItem.icon}</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#e0e0e0' }}>{selectedItem.name}</span>
+              </div>
+              <p style={{ fontSize: '12px', color: '#aaa' }}>Data object used during the EPE meeting</p>
+            </div>
+          );
+        }
+
+        return null;
+      };
+
+      // Export
+      const exportModel = () => {
+        const json = JSON.stringify(processModel, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'epe_meeting_subprocess.json';
+        a.click();
+      };
+
+      return (
+        <div style={{
+          height: '100vh',
+          width: '100vw',
+          background: '#0a0a0e',
+          color: '#e0e0e0',
+          fontFamily: "'Inter', sans-serif",
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: '10px 16px',
+            background: '#0f0f14',
+            borderBottom: '1px solid #1a1a22',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{
+                padding: '4px 10px',
+                background: 'rgba(139,92,246,0.2)',
+                border: '1px solid rgba(139,92,246,0.4)',
+                borderRadius: '4px',
+                color: '#8b5cf6',
+                fontSize: '10px',
+                fontFamily: "'JetBrains Mono', monospace"
+              }}>SUBPROCESS</span>
+              <h1 style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '15px',
+                fontWeight: '600',
+                margin: 0,
+                color: '#e0e0e0'
+              }}>{processModel.metadata.name}</h1>
+              <span style={{ color: '#666', fontSize: '12px' }}>|</span>
+              <span style={{ color: '#888', fontSize: '11px' }}>{processModel.metadata.duration}</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ 
+                padding: '6px 12px', 
+                background: 'rgba(255,255,255,0.05)', 
+                borderRadius: '4px',
+                fontSize: '10px',
+                color: '#888'
+              }}>
+                Participants: {processModel.metadata.participants.join(', ')}
+              </div>
+              <button onClick={exportModel} style={{
+                padding: '5px 10px',
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '4px',
+                color: '#e0e0e0',
+                cursor: 'pointer',
+                fontSize: '10px'
+              }}>Export</button>
+            </div>
+          </div>
+
+          {/* Main */}
+          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+            {/* Canvas */}
+            <div style={{
+              flex: 1,
+              background: '#0a0a0e',
+              overflow: 'auto'
+            }}
+            onClick={() => {
+              setSelectedItem(null);
+              setSelectedType(null);
+            }}>
+              <svg width="2000" height="500" style={{ display: 'block' }}>
+                {renderLanes()}
+                {renderPhaseLabels()}
+                {renderConnections()}
+                {renderDataObjects()}
+                {renderActivities()}
+              </svg>
+            </div>
+
+            {/* Detail Panel */}
+            <div style={{
+              width: '300px',
+              background: '#0c0c10',
+              borderLeft: '1px solid #1a1a22',
+              display: 'flex',
+              flexDirection: 'column',
+              flexShrink: 0
+            }}>
+              <div style={{
+                padding: '10px 12px',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '9px',
+                color: '#666',
+                textTransform: 'uppercase',
+                borderBottom: '1px solid #1a1a22'
+              }}>Activity Details</div>
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <DetailPanel />
+              </div>
+
+              {/* Legend */}
+              <div style={{
+                padding: '10px 12px',
+                borderTop: '1px solid #1a1a22',
+                background: '#08080a',
+                fontSize: '9px'
+              }}>
+                <div style={{ color: '#555', marginBottom: '6px', fontFamily: "'JetBrains Mono', monospace" }}>ACTIVITY TYPES</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                  {Object.entries(activityTypeConfig).map(([type, config]) => (
+                    <div key={type} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: type === 'event' ? '50%' : '2px', background: config.color }} />
+                      <span style={{ color: '#666' }}>{type}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ color: '#555', marginTop: '8px', marginBottom: '6px', fontFamily: "'JetBrains Mono', monospace" }}>SWIM LANES</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {processModel.lanes.map(lane => (
+                    <div key={lane.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '12px', height: '8px', background: lane.color + '40', border: `1px solid ${lane.color}` }} />
+                      <span style={{ color: '#666', fontSize: '8px' }}>{lane.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<EPEMeetingSubprocess />);
+  </script>
+</body>
+</html>
