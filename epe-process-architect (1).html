@@ -1,0 +1,2444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Process Architect</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; width: 100%; overflow: hidden; }
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback } = React;
+
+    // ============================================
+    // PROCESS ARCHITECT - EPE PROCESS
+    // ============================================
+
+    const ProcessArchitect = () => {
+      // UI State
+      const [selectedItem, setSelectedItem] = useState(null);
+      const [selectedType, setSelectedType] = useState(null);
+      const [expandedGoals, setExpandedGoals] = useState(['outcome_1', 'obj_1', 'obj_2', 'obj_3', 'obj_4']);
+      const [showGoalPanel, setShowGoalPanel] = useState(true);
+      const [connecting, setConnecting] = useState(null);
+      const [showDataObjects, setShowDataObjects] = useState(true);
+      const svgRef = useRef(null);
+      const [svgOffset, setSvgOffset] = useState({ x: 0, y: 0 });
+
+      // ============================================
+      // PROCESS MODEL - EPE
+      // ============================================
+      const [processModel, setProcessModel] = useState({
+        metadata: {
+          name: 'EPE Process',
+          fullName: 'Expansion Planning & Execution',
+          description: 'Monthly account review process to grow ARR and reduce churn',
+          version: '1.0'
+        },
+
+        // GOAL HIERARCHY
+        goals: [
+          // OUTCOME
+          {
+            id: 'outcome_1',
+            type: 'outcome',
+            name: 'Grow Account ARR & Reduce Churn',
+            description: 'Expand account revenue while minimizing churn, shrink, and stagnation across the portfolio',
+            successCriteria: [
+              'YoY ARR growth across portfolio',
+              'Churn rate below target threshold',
+              'Reduction in stagnant accounts',
+              'Reduction in shrinking accounts'
+            ],
+            children: ['obj_1', 'obj_2', 'obj_3', 'obj_4'],
+            parent: null
+          },
+          // OBJECTIVES
+          {
+            id: 'obj_1',
+            type: 'objective',
+            name: 'Maximize Review Impact',
+            description: 'Ensure EPE time is spent on accounts with highest potential for impact',
+            successCriteria: [
+              'Reviewed accounts show engagement lift',
+              'At-risk accounts stabilized',
+              'Growth opportunities identified and pursued'
+            ],
+            children: ['req_1', 'req_2'],
+            parent: 'outcome_1'
+          },
+          {
+            id: 'obj_2',
+            type: 'objective',
+            name: 'Drive Consistent Engagement',
+            description: 'No accounts slip through the cracks - ensure regular touchpoints',
+            successCriteria: [
+              'All accounts reviewed within target cycle',
+              'No account goes 90+ days without review',
+              'Engagement activities tracked and completed'
+            ],
+            children: ['req_3', 'req_4'],
+            parent: 'outcome_1'
+          },
+          {
+            id: 'obj_3',
+            type: 'objective',
+            name: 'Generate Actionable Initiatives',
+            description: 'Every review results in clear, assigned next steps',
+            successCriteria: [
+              'Initiatives created for each reviewed account',
+              'Activities assigned with owners and due dates',
+              'Completion rate above 80%'
+            ],
+            children: ['req_5', 'req_6'],
+            parent: 'outcome_1'
+          },
+          {
+            id: 'obj_4',
+            type: 'objective',
+            name: 'Maintain Account Intelligence',
+            description: 'Always-current, comprehensive view of account health and history',
+            successCriteria: [
+              'Account summaries updated before each EPE',
+              'Historical context readily accessible',
+              'Transcripts and artifacts properly filed'
+            ],
+            children: ['req_7', 'req_8'],
+            parent: 'outcome_1'
+          },
+          // REQUIREMENTS
+          {
+            id: 'req_1',
+            type: 'requirement',
+            name: 'Accounts Ranked by Impact',
+            description: 'Portfolio ranked using telemetry, signals, and recency data',
+            successCriteria: ['Ranking algorithm executed', 'Top candidates identified'],
+            hardOrSoft: 'hard',
+            linkedActivity: 'agent_rank',
+            children: [],
+            parent: 'obj_1'
+          },
+          {
+            id: 'req_2',
+            type: 'requirement',
+            name: 'Account Mix Balanced',
+            description: 'Selection includes growth opportunity, stagnant, and at-risk accounts',
+            successCriteria: ['2-3 accounts selected', 'Mix of account types represented'],
+            hardOrSoft: 'soft',
+            linkedActivity: 'human_confirm',
+            children: [],
+            parent: 'obj_1'
+          },
+          {
+            id: 'req_3',
+            type: 'requirement',
+            name: 'Monthly Review Cadence',
+            description: 'EPE sessions held monthly for each AE',
+            successCriteria: ['Session scheduled', 'Session completed'],
+            hardOrSoft: 'hard',
+            linkedActivity: 'subprocess_epe',
+            children: [],
+            parent: 'obj_2'
+          },
+          {
+            id: 'req_4',
+            type: 'requirement',
+            name: 'Overdue Activities Reviewed',
+            description: 'Open/overdue activities from any account addressed first',
+            successCriteria: ['Overdue items surfaced', 'Status updated or escalated'],
+            hardOrSoft: 'hard',
+            linkedActivity: 'subprocess_epe',
+            children: [],
+            parent: 'obj_2'
+          },
+          {
+            id: 'req_5',
+            type: 'requirement',
+            name: 'Initiatives Defined',
+            description: 'Strategic initiatives set by call leader for each account',
+            successCriteria: ['At least one initiative per account', 'Initiative has clear goal'],
+            hardOrSoft: 'hard',
+            linkedActivity: 'human_assign',
+            children: [],
+            parent: 'obj_3'
+          },
+          {
+            id: 'req_6',
+            type: 'requirement',
+            name: 'Activities Assigned & Tracked',
+            description: 'Each activity has owner, due date, and tracking',
+            successCriteria: ['Owner assigned', 'Due date set', 'Notifications scheduled'],
+            hardOrSoft: 'hard',
+            linkedActivity: 'system_create',
+            children: [],
+            parent: 'obj_3'
+          },
+          {
+            id: 'req_7',
+            type: 'requirement',
+            name: 'Account Summaries Current',
+            description: 'AI-generated summaries updated before and after EPE',
+            successCriteria: ['Summary reflects latest data', 'Transcripts incorporated'],
+            hardOrSoft: 'hard',
+            linkedActivity: 'agent_summary',
+            children: [],
+            parent: 'obj_4'
+          },
+          {
+            id: 'req_8',
+            type: 'requirement',
+            name: 'Artifacts Properly Filed',
+            description: 'EPE transcripts split by account and filed to Google Drive',
+            successCriteria: ['Transcript processed', 'Files in correct folders'],
+            hardOrSoft: 'hard',
+            linkedActivity: 'agent_file',
+            children: [],
+            parent: 'obj_4'
+          },
+          // CONSTRAINTS
+          {
+            id: 'const_1',
+            type: 'constraint',
+            name: 'Plays from Approved Library',
+            description: 'Recommended plays should come from the play library when applicable (ad-hoc allowed)',
+            scope: 'global',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'const_2',
+            type: 'constraint',
+            name: 'Review Overdue First',
+            description: 'Open/overdue activities must be reviewed before new account discussions',
+            scope: 'epe_session',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'const_3',
+            type: 'constraint',
+            name: 'Activity Outcomes Logged',
+            description: 'Completed activity outcomes must be captured for future learning',
+            scope: 'global',
+            children: [],
+            parent: null
+          },
+          // MILESTONES
+          {
+            id: 'mile_1',
+            type: 'milestone',
+            name: 'Accounts Ranked',
+            description: 'Portfolio scoring complete, recommendations ready',
+            passCriteria: ['Rankings generated', 'Top candidates identified'],
+            linkedActivity: 'agent_rank',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'mile_2',
+            type: 'milestone',
+            name: 'Prep Complete',
+            description: 'Observations, recommendations, and summaries ready for session',
+            passCriteria: ['Prep generated for selected accounts', 'Summaries updated'],
+            linkedActivity: 'agent_prep',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'mile_3',
+            type: 'milestone',
+            name: 'EPE Session Complete',
+            description: 'Monthly review session finished',
+            passCriteria: ['All selected accounts reviewed', 'Initiatives defined'],
+            linkedActivity: 'subprocess_epe',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'mile_4',
+            type: 'milestone',
+            name: 'Activities Assigned',
+            description: 'All next steps have owners and due dates',
+            passCriteria: ['Activities created in system', 'Notifications scheduled'],
+            linkedActivity: 'system_create',
+            children: [],
+            parent: null
+          },
+          // RISKS
+          {
+            id: 'risk_1',
+            type: 'risk',
+            name: 'Data Quality Issues',
+            description: 'Telemetry or CRM data may be incomplete or stale',
+            likelihood: 'medium',
+            impact: 'high',
+            mitigation: 'Flag data gaps in prep, supplement with AE knowledge during session',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'risk_2',
+            type: 'risk',
+            name: 'Activity Follow-through',
+            description: 'Assigned activities may not be completed on time',
+            likelihood: 'medium',
+            impact: 'high',
+            mitigation: 'Due date reminders, review overdue at start of each EPE',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'risk_3',
+            type: 'risk',
+            name: 'Key Attendee Absence',
+            description: 'Critical team member unavailable for EPE session',
+            likelihood: 'low',
+            impact: 'medium',
+            mitigation: 'Async input option, reschedule if critical',
+            children: [],
+            parent: null
+          },
+          // ASSUMPTIONS
+          {
+            id: 'assume_1',
+            type: 'assumption',
+            name: 'Telemetry Access',
+            description: 'Product telemetry data is accessible and reasonably current',
+            validatedBy: 'Data pipeline check',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'assume_2',
+            type: 'assumption',
+            name: 'Transcript Availability',
+            description: 'Gong/meeting transcripts are available within 24 hours',
+            validatedBy: 'Gong integration active',
+            children: [],
+            parent: null
+          },
+          {
+            id: 'assume_3',
+            type: 'assumption',
+            name: 'Play Library Maintained',
+            description: 'Play library is kept current with effective engagement tactics',
+            validatedBy: 'Quarterly play review',
+            children: [],
+            parent: null
+          }
+        ],
+
+        // ACTIVITIES
+        activities: [
+          // Events
+          {
+            id: 'event_start',
+            type: 'event',
+            eventType: 'start',
+            name: 'Monthly Trigger',
+            description: 'EPE cycle begins (typically 1 week before scheduled session)',
+            position: { x: 80, y: 250 }
+          },
+          {
+            id: 'event_end',
+            type: 'event',
+            eventType: 'end',
+            name: 'Cycle Complete',
+            description: 'EPE cycle finished, activities being tracked',
+            position: { x: 1100, y: 250 }
+          },
+          // Agent Tasks
+          {
+            id: 'agent_rank',
+            type: 'agent',
+            name: 'Rank Portfolio',
+            description: 'Score and rank all accounts in AE portfolio based on impact potential',
+            linkedGoal: 'req_1',
+            position: { x: 200, y: 250 },
+            timing: { estimatedDuration: '5-10 min', sla: '1 week before EPE', slaType: 'soft' },
+            dataInputs: ['Telemetry data', 'Support tickets', 'Web activity', 'Last review date', 'Company news'],
+            dataOutputs: ['Ranked account list', 'Scoring rationale'],
+            stateEmits: ['RANKING_COMPLETE'],
+            stateListens: [],
+            agentPrompt: `You are responsible for ranking an AE's account portfolio for the upcoming EPE session.
+
+GOAL: Identify the 2-3 accounts that would benefit most from review this month.
+
+DATA INPUTS:
+- Product telemetry (usage trends, feature adoption)
+- Support ticket history and sentiment
+- Website/marketing engagement
+- Days since last EPE review
+- Public company news (funding, leadership changes, etc.)
+- Current contract value and renewal date
+
+RANKING CRITERIA:
+1. Growth signals present (usage spike, expansion inquiries)
+2. Risk indicators (usage drop, support escalations, champion departure)
+3. Stagnation (flat usage, no engagement, long time since contact)
+4. Time since last review (prioritize accounts not seen recently)
+
+OUTPUT:
+- Top 10 ranked accounts with scores
+- Recommended 2-3 for review with rationale
+- Flag any requiring immediate attention outside EPE
+
+Aim for a MIX: ideally one growth opportunity, one stagnant, one at-risk.`
+          },
+          {
+            id: 'human_confirm',
+            type: 'human',
+            name: 'Confirm Selection',
+            description: 'AE Manager reviews recommendations and confirms/adjusts account selection',
+            linkedGoal: 'req_2',
+            position: { x: 340, y: 250 },
+            timing: { estimatedDuration: '10 min', sla: '3 days before EPE', slaType: 'soft' },
+            assignment: { type: 'role', value: 'AE Manager' },
+            taskType: 'decide',
+            formFields: ['Selected accounts', 'Adjustment rationale']
+          },
+          {
+            id: 'agent_prep',
+            type: 'agent',
+            name: 'Generate Prep',
+            description: 'Create observations, recommendations, and play suggestions for selected accounts',
+            linkedGoal: 'mile_2',
+            position: { x: 480, y: 250 },
+            timing: { estimatedDuration: '15-20 min', sla: '1 day before EPE', slaType: 'hard' },
+            dataInputs: ['Account summary', 'Telemetry', 'Recent interactions', 'Play library', 'Historical EPE notes'],
+            dataOutputs: ['Observations', 'Recommended plays', 'Talking points', 'Risk flags'],
+            stateEmits: ['PREP_COMPLETE'],
+            stateListens: ['RANKING_COMPLETE'],
+            agentPrompt: `You are preparing materials for an EPE account review session.
+
+GOAL: Generate actionable insights and recommendations for each selected account.
+
+FOR EACH ACCOUNT, PROVIDE:
+
+1. ACCOUNT SUMMARY REFRESH
+   - Current health indicators
+   - Recent activity highlights
+   - Key contacts and engagement level
+
+2. OBSERVATIONS
+   - What's changed since last review?
+   - Positive signals (growth, engagement, expansion)
+   - Warning signs (usage drop, support issues, silence)
+   - External factors (company news, market changes)
+
+3. RECOMMENDED PLAYS
+   - Match account situation to plays from the library
+   - Explain why each play fits
+   - If no good library match, suggest custom approach
+   - Prioritize by likely impact
+
+4. TALKING POINTS
+   - Key questions to discuss as a team
+   - Information gaps to fill
+   - Decisions needed
+
+OUTPUT FORMAT: Structured brief for each account, ready for team review.`
+          },
+          {
+            id: 'subprocess_epe',
+            type: 'subprocess',
+            name: 'EPE Session',
+            description: 'Monthly team call: review overdue activities, then discuss 2-3 accounts sequentially',
+            linkedGoal: 'req_3',
+            position: { x: 620, y: 250 },
+            timing: { estimatedDuration: '60-90 min', sla: 'Monthly', slaType: 'hard' },
+            participants: ['AE', 'AE Manager', 'Presales', 'Customer Success'],
+            subProcessDescription: `EPE SESSION FLOW:
+
+1. OPEN ACTIVITIES REVIEW (10-15 min)
+   - Surface overdue/due-soon activities across ALL accounts
+   - Quick status update on each
+   - Reassign or escalate as needed
+
+2. FOR EACH SELECTED ACCOUNT (15-20 min each):
+   
+   a) Status Round
+      - Each team member shares recent interactions
+      - Surface any information not in the prep
+   
+   b) Data Review  
+      - Walk through telemetry highlights
+      - Discuss observations from prep
+   
+   c) Planning
+      - Leader defines initiatives (strategic goals)
+      - Team identifies specific activities
+      - Assign owners and due dates
+      - Select plays from library or create ad-hoc tasks
+
+3. WRAP-UP (5 min)
+   - Confirm all activities captured
+   - Note any cross-account patterns
+   - Set next EPE date if needed`
+          },
+          {
+            id: 'human_assign',
+            type: 'human',
+            name: 'Assign Activities',
+            description: 'Define initiatives and assign activities with owners and due dates',
+            linkedGoal: 'req_5',
+            position: { x: 760, y: 250 },
+            timing: { estimatedDuration: 'During session', sla: 'End of EPE', slaType: 'hard' },
+            assignment: { type: 'role', value: 'EPE Leader' },
+            taskType: 'assign',
+            formFields: ['Initiative name', 'Activity description', 'Owner', 'Due date', 'Play (if applicable)']
+          },
+          {
+            id: 'agent_file',
+            type: 'agent',
+            name: 'Process Transcript',
+            description: 'Split EPE transcript by account and file to appropriate Google Drive folders',
+            linkedGoal: 'req_8',
+            position: { x: 870, y: 180 },
+            timing: { estimatedDuration: '5-10 min', sla: '24 hours after EPE', slaType: 'soft' },
+            dataInputs: ['EPE transcript', 'Account folder mapping'],
+            dataOutputs: ['Filed transcripts', 'Processing confirmation'],
+            stateEmits: ['TRANSCRIPT_FILED'],
+            stateListens: ['EPE_COMPLETE'],
+            agentPrompt: `You are responsible for processing the EPE meeting transcript.
+
+GOAL: Extract account-specific content and file to the correct locations.
+
+PROCESS:
+1. Identify which accounts were discussed in the session
+2. For each account:
+   - Extract the relevant portion of transcript
+   - Summarize key decisions and action items
+   - Identify the Google Drive folder for this account
+   - Save transcript excerpt and summary to folder
+
+3. Create a session summary with:
+   - Accounts reviewed
+   - Key decisions made
+   - Activities assigned
+   - Cross-account themes noted
+
+FILE NAMING: [Date]_EPE_[AccountName]_transcript.md
+
+Ensure nothing is lost - flag any content that doesn't clearly belong to a specific account.`
+          },
+          {
+            id: 'agent_summary',
+            type: 'agent',
+            name: 'Update Summaries',
+            description: 'Refresh account summaries incorporating EPE discussion and decisions',
+            linkedGoal: 'req_7',
+            position: { x: 870, y: 320 },
+            timing: { estimatedDuration: '10-15 min', sla: '24 hours after EPE', slaType: 'soft' },
+            dataInputs: ['EPE transcript', 'Prior summary', 'New activities', 'Gong calls'],
+            dataOutputs: ['Updated account summary'],
+            stateEmits: ['SUMMARY_UPDATED'],
+            stateListens: ['TRANSCRIPT_FILED'],
+            agentPrompt: `You are responsible for maintaining the master account summary.
+
+GOAL: Keep the account summary current with all relevant context.
+
+INCORPORATE:
+- Key points from EPE discussion
+- New initiatives and activities assigned  
+- Updated health assessment
+- Changes in stakeholders or relationships
+- Any risks or opportunities identified
+
+SUMMARY STRUCTURE:
+1. Account Overview (static info, contract details)
+2. Current Health (updated assessment)
+3. Recent History (last 90 days of key events)
+4. Active Initiatives (what we're working on)
+5. Open Activities (pending tasks)
+6. Key Relationships (contacts, champions, detractors)
+7. Growth Opportunities (expansion vectors)
+8. Risk Factors (churn/shrink indicators)
+
+The summary should give anyone a complete picture of the account in 2 minutes of reading.`
+          },
+          {
+            id: 'system_create',
+            type: 'system',
+            name: 'Create Records',
+            description: 'Create activity records in tracking system and schedule notifications',
+            linkedGoal: 'req_6',
+            position: { x: 980, y: 250 },
+            timing: { estimatedDuration: 'Immediate', sla: 'Real-time', slaType: 'hard' },
+            systemActions: ['Create activity records', 'Set due dates', 'Schedule reminders', 'Update dashboards']
+          },
+          // Decision
+          {
+            id: 'decision_urgent',
+            type: 'decision',
+            name: 'Urgent Event?',
+            description: 'Does the external event require immediate action outside the EPE cycle?',
+            position: { x: 280, y: 100 },
+            conditions: [
+              { label: 'Yes - Urgent', target: 'human_escalate' },
+              { label: 'No - Track', target: 'agent_rank' }
+            ]
+          },
+          // Event-driven
+          {
+            id: 'event_external',
+            type: 'event',
+            eventType: 'signal',
+            name: 'External Signal',
+            description: 'External events that may impact account priority',
+            position: { x: 120, y: 100 },
+            signals: [
+              'Usage drop detected',
+              'Support escalation',
+              'Champion left company',
+              'Renewal approaching',
+              'Company news (funding/layoffs)',
+              'Inbound inquiry',
+              'Activity overdue'
+            ]
+          },
+          {
+            id: 'human_escalate',
+            type: 'human',
+            name: 'Handle Escalation',
+            description: 'Immediate action on urgent account event',
+            position: { x: 420, y: 100 },
+            assignment: { type: 'role', value: 'AE or CS' },
+            taskType: 'execute',
+            timing: { estimatedDuration: 'Varies', sla: '24-48 hours', slaType: 'hard' }
+          },
+          // Gateway for parallel post-session work
+          {
+            id: 'gateway_parallel',
+            type: 'gateway',
+            gatewayType: 'parallel_split',
+            name: 'Post-Session Tasks',
+            description: 'Parallel processing after EPE session',
+            position: { x: 800, y: 250 }
+          },
+          {
+            id: 'gateway_join',
+            type: 'gateway',
+            gatewayType: 'parallel_join',
+            name: 'Tasks Complete',
+            description: 'All post-session tasks finished',
+            position: { x: 980, y: 250 }
+          }
+        ],
+
+        // DEPENDENCIES / CONNECTIONS
+        // Types: hard (must wait), soft (can proceed with risk), informational (nice to have)
+        connections: [
+          { id: 'c1', from: 'event_start', to: 'agent_rank', type: 'hard', reason: 'Sequential start' },
+          { id: 'c2', from: 'agent_rank', to: 'human_confirm', type: 'hard', reason: 'Need rankings before selection' },
+          { id: 'c3', from: 'human_confirm', to: 'agent_prep', type: 'hard', reason: 'Need confirmed accounts to prep' },
+          { id: 'c4', from: 'agent_prep', to: 'subprocess_epe', type: 'soft', reason: 'Can start session with partial prep if needed', riskIfProceeded: 'Less informed discussion', defaultAssumption: 'Use available data' },
+          { id: 'c5', from: 'subprocess_epe', to: 'human_assign', type: 'hard', reason: 'Assignments happen during/after session' },
+          { id: 'c6', from: 'human_assign', to: 'agent_file', type: 'soft', reason: 'Filing can happen async', riskIfProceeded: 'Delayed documentation', defaultAssumption: 'Queue for processing' },
+          { id: 'c7', from: 'human_assign', to: 'agent_summary', type: 'soft', reason: 'Summary update can be async', riskIfProceeded: 'Summary temporarily stale', defaultAssumption: 'Update within 24h' },
+          { id: 'c8', from: 'human_assign', to: 'system_create', type: 'hard', reason: 'Activities must be recorded immediately' },
+          { id: 'c9', from: 'agent_file', to: 'event_end', type: 'informational', reason: 'Cycle can complete before filing done' },
+          { id: 'c10', from: 'agent_summary', to: 'event_end', type: 'informational', reason: 'Cycle can complete before summary updated' },
+          { id: 'c11', from: 'system_create', to: 'event_end', type: 'hard', reason: 'Must have records before cycle completes' },
+          // Event-driven path
+          { id: 'c12', from: 'event_external', to: 'decision_urgent', type: 'hard', reason: 'Must evaluate urgency' },
+          { id: 'c13', from: 'decision_urgent', to: 'human_escalate', type: 'hard', label: 'Urgent' },
+          { id: 'c14', from: 'decision_urgent', to: 'agent_rank', type: 'informational', label: 'Track', reason: 'Signal feeds into next ranking cycle' }
+        ],
+
+        // DATA OBJECTS
+        dataObjects: [
+          {
+            id: 'data_summary',
+            name: 'Account Summary',
+            description: 'AI-generated summary of account health, history, and context',
+            icon: '📋',
+            position: { x: 550, y: 380 },
+            linkedActivities: ['agent_prep', 'agent_summary', 'subprocess_epe']
+          },
+          {
+            id: 'data_plays',
+            name: 'Play Library',
+            description: 'Approved engagement plays and tactics (10-14 options)',
+            icon: '📚',
+            position: { x: 650, y: 380 },
+            linkedActivities: ['agent_prep', 'human_assign']
+          },
+          {
+            id: 'data_activities',
+            name: 'Activity Backlog',
+            description: 'Tracked activities with owners, due dates, and status',
+            icon: '✅',
+            position: { x: 750, y: 380 },
+            linkedActivities: ['human_assign', 'system_create', 'subprocess_epe']
+          },
+          {
+            id: 'data_folder',
+            name: 'Account Folders',
+            description: 'Google Drive folder structure for account artifacts',
+            icon: '📁',
+            position: { x: 850, y: 380 },
+            linkedActivities: ['agent_file']
+          }
+        ]
+      });
+
+      // ============================================
+      // HELPER FUNCTIONS
+      // ============================================
+
+      const getGoalById = (id) => processModel.goals.find(g => g.id === id);
+      const getActivityById = (id) => processModel.activities.find(a => a.id === id);
+      const getChildGoals = (parentId) => processModel.goals.filter(g => g.parent === parentId);
+
+      const goalTypeConfig = {
+        outcome: { color: '#10b981', bg: '#10b98120', label: 'OUTCOME', icon: '🎯' },
+        objective: { color: '#3b82f6', bg: '#3b82f620', label: 'OBJ', icon: '◎' },
+        requirement: { color: '#8b5cf6', bg: '#8b5cf620', label: 'REQ', icon: '○' },
+        constraint: { color: '#ef4444', bg: '#ef444420', label: 'CONST', icon: '⊘' },
+        milestone: { color: '#f59e0b', bg: '#f59e0b20', label: 'MILE', icon: '◆' },
+        risk: { color: '#f43f5e', bg: '#f43f5e20', label: 'RISK', icon: '⚠' },
+        assumption: { color: '#6b7280', bg: '#6b728020', label: 'ASSUM', icon: '?' }
+      };
+
+      const activityTypeConfig = {
+        event: { color: '#ec4899', shape: 'circle' },
+        human: { color: '#3b82f6', shape: 'rectangle' },
+        agent: { color: '#10b981', shape: 'roundedRect' },
+        system: { color: '#6b7280', shape: 'rectangle' },
+        decision: { color: '#f59e0b', shape: 'diamond' },
+        subprocess: { color: '#8b5cf6', shape: 'subprocess' },
+        gateway: { color: '#06b6d4', shape: 'diamond' }
+      };
+
+      const connectionTypeConfig = {
+        hard: { color: '#ef4444', dash: '', label: 'Hard', description: 'Must wait - cannot proceed without' },
+        soft: { color: '#f59e0b', dash: '8,4', label: 'Soft', description: 'Should wait - can proceed with risk' },
+        informational: { color: '#3b82f6', dash: '4,4', label: 'Info', description: 'Nice to have - can proceed with defaults' }
+      };
+
+      // ============================================
+      // UPDATE FUNCTIONS  
+      // ============================================
+
+      const updateGoal = (id, updates) => {
+        setProcessModel(prev => ({
+          ...prev,
+          goals: prev.goals.map(g => g.id === id ? { ...g, ...updates } : g)
+        }));
+        if (selectedItem?.id === id) setSelectedItem(prev => ({ ...prev, ...updates }));
+      };
+
+      const updateActivity = (id, updates) => {
+        setProcessModel(prev => ({
+          ...prev,
+          activities: prev.activities.map(a => a.id === id ? { ...a, ...updates } : a)
+        }));
+        if (selectedItem?.id === id) setSelectedItem(prev => ({ ...prev, ...updates }));
+      };
+
+      const addConnection = (fromId, toId) => {
+        if (fromId === toId) return;
+        const exists = processModel.connections.some(c => c.from === fromId && c.to === toId);
+        if (exists) return;
+
+        setProcessModel(prev => ({
+          ...prev,
+          connections: [...prev.connections, {
+            id: 'c_' + Date.now(),
+            from: fromId,
+            to: toId,
+            type: 'soft',
+            reason: '',
+            riskIfProceeded: '',
+            defaultAssumption: ''
+          }]
+        }));
+      };
+
+      const deleteConnection = (id) => {
+        setProcessModel(prev => ({
+          ...prev,
+          connections: prev.connections.filter(c => c.id !== id)
+        }));
+        if (selectedItem?.id === id) {
+          setSelectedItem(null);
+          setSelectedType(null);
+        }
+      };
+
+      const addActivity = (type = 'agent') => {
+        const newId = 'activity_' + Date.now();
+        const typeDefaults = {
+          event: { eventType: 'intermediate', name: 'New Event' },
+          human: { name: 'New Human Task', taskType: 'execute', assignment: { type: 'role', value: '' } },
+          agent: { name: 'New Agent Task', dataInputs: [], dataOutputs: [], agentPrompt: '' },
+          system: { name: 'New System Task', systemActions: [] },
+          decision: { name: 'New Decision', conditions: [] },
+          subprocess: { name: 'New Subprocess', subProcessDescription: '' },
+          gateway: { name: 'Gateway', gatewayType: 'parallel_split' }
+        };
+
+        const newActivity = {
+          id: newId,
+          type: type,
+          position: { x: 400 + Math.random() * 100, y: 200 + Math.random() * 100 },
+          description: '',
+          timing: { estimatedDuration: '', sla: '', slaType: 'soft' },
+          ...typeDefaults[type]
+        };
+
+        setProcessModel(prev => ({
+          ...prev,
+          activities: [...prev.activities, newActivity]
+        }));
+
+        setSelectedItem(newActivity);
+        setSelectedType('activity');
+      };
+
+      const deleteActivity = (id) => {
+        if (id === 'event_start' || id === 'event_end') return; // Protect start/end
+        setProcessModel(prev => ({
+          ...prev,
+          activities: prev.activities.filter(a => a.id !== id),
+          connections: prev.connections.filter(c => c.from !== id && c.to !== id)
+        }));
+        setSelectedItem(null);
+        setSelectedType(null);
+      };
+
+      const addGoal = (type = 'requirement', parentId = null) => {
+        const newId = 'goal_' + Date.now();
+        const newGoal = {
+          id: newId,
+          type: type,
+          name: 'New ' + type.charAt(0).toUpperCase() + type.slice(1),
+          description: '',
+          successCriteria: [],
+          children: [],
+          parent: parentId
+        };
+
+        setProcessModel(prev => {
+          let goals = [...prev.goals, newGoal];
+          if (parentId) {
+            goals = goals.map(g => 
+              g.id === parentId 
+                ? { ...g, children: [...(g.children || []), newId] }
+                : g
+            );
+          }
+          return { ...prev, goals };
+        });
+
+        if (parentId && !expandedGoals.includes(parentId)) {
+          setExpandedGoals(prev => [...prev, parentId]);
+        }
+
+        setSelectedItem(newGoal);
+        setSelectedType('goal');
+      };
+
+      const deleteGoal = (id) => {
+        if (id === 'outcome_1') return; // Protect root outcome
+        const goal = getGoalById(id);
+        setProcessModel(prev => ({
+          ...prev,
+          goals: prev.goals
+            .filter(g => g.id !== id)
+            .map(g => ({
+              ...g,
+              children: g.children?.filter(c => c !== id) || []
+            }))
+        }));
+        setSelectedItem(null);
+        setSelectedType(null);
+      };
+
+      const updateConnection = (id, updates) => {
+        setProcessModel(prev => ({
+          ...prev,
+          connections: prev.connections.map(c => c.id === id ? { ...c, ...updates } : c)
+        }));
+        if (selectedItem?.id === id) {
+          setSelectedItem(prev => ({ ...prev, ...updates }));
+        }
+      };
+
+      const toggleGoalExpand = (id) => {
+        setExpandedGoals(prev => 
+          prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+      };
+
+      // ============================================
+      // ACTIVITY DRAG & CONNECT
+      // ============================================
+
+      const handleActivityMouseDown = (e, activity) => {
+        e.stopPropagation();
+        
+        if (connecting) {
+          // Complete connection
+          addConnection(connecting.from, activity.id);
+          setConnecting(null);
+          return;
+        }
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startPos = { ...activity.position };
+
+        const handleMove = (moveE) => {
+          const dx = moveE.clientX - startX;
+          const dy = moveE.clientY - startY;
+          updateActivity(activity.id, {
+            position: { x: startPos.x + dx, y: startPos.y + dy }
+          });
+        };
+
+        const handleUp = () => {
+          document.removeEventListener('mousemove', handleMove);
+          document.removeEventListener('mouseup', handleUp);
+        };
+
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleUp);
+      };
+
+      const startConnection = (e, activityId) => {
+        e.stopPropagation();
+        setConnecting({ from: activityId });
+      };
+
+      // ============================================
+      // RENDER ACTIVITY SHAPES
+      // ============================================
+
+      const ActivityShape = ({ activity, isSelected }) => {
+        const config = activityTypeConfig[activity.type];
+        const x = activity.position.x;
+        const y = activity.position.y;
+
+        const baseProps = {
+          fill: isSelected ? config.color + '40' : config.color + '20',
+          stroke: config.color,
+          strokeWidth: isSelected ? 3 : 2,
+          style: { cursor: connecting ? 'crosshair' : 'move' }
+        };
+
+        // Connection handle
+        const ConnectionHandle = ({ cx, cy }) => (
+          <circle
+            cx={cx}
+            cy={cy}
+            r="6"
+            fill="#1a1a2e"
+            stroke={config.color}
+            strokeWidth="2"
+            style={{ cursor: 'pointer' }}
+            onMouseDown={(e) => startConnection(e, activity.id)}
+          />
+        );
+
+        let shape;
+        let labelY = y + 4;
+        let typeLabel = null;
+        let icon = null;
+
+        switch (activity.type) {
+          case 'event':
+            const isStart = activity.eventType === 'start';
+            const isSignal = activity.eventType === 'signal';
+            shape = (
+              <g>
+                <circle cx={x} cy={y} r="24" {...baseProps} />
+                {isSignal && <circle cx={x} cy={y} r="18" fill="none" stroke={config.color} strokeWidth="1" strokeDasharray="3,2" />}
+                {!isStart && !isSignal && <circle cx={x} cy={y} r="20" fill="none" stroke={config.color} strokeWidth="3" />}
+              </g>
+            );
+            break;
+
+          case 'human':
+            shape = (
+              <g>
+                <rect x={x-55} y={y-30} width="110" height="60" rx="4" {...baseProps} />
+                <circle cx={x-35} cy={y-10} r="8" fill={config.color} opacity="0.6" />
+                <path d={`M${x-43},${y+5} Q${x-35},${y-5} ${x-27},${y+5} L${x-27},${y+15} L${x-43},${y+15} Z`} fill={config.color} opacity="0.6" />
+              </g>
+            );
+            typeLabel = activity.taskType?.toUpperCase() || 'HUMAN';
+            labelY = y + 8;
+            break;
+
+          case 'agent':
+            shape = (
+              <g>
+                <rect x={x-55} y={y-30} width="110" height="60" rx="20" {...baseProps} />
+                <circle cx={x-35} cy={y-5} r="5" fill={config.color} opacity="0.5" />
+                <circle cx={x-25} cy={y} r="4" fill={config.color} opacity="0.4" />
+                <circle cx={x-32} cy={y+8} r="3" fill={config.color} opacity="0.3" />
+              </g>
+            );
+            typeLabel = 'AGENT';
+            labelY = y + 8;
+            break;
+
+          case 'system':
+            shape = (
+              <g>
+                <rect x={x-55} y={y-30} width="110" height="60" rx="4" {...baseProps} />
+                <circle cx={x-35} cy={y} r="10" fill="none" stroke={config.color} strokeWidth="2" opacity="0.6" />
+                <circle cx={x-35} cy={y} r="3" fill={config.color} opacity="0.6" />
+                {[0, 60, 120, 180, 240, 300].map(angle => (
+                  <line 
+                    key={angle}
+                    x1={x-35 + 6*Math.cos(angle*Math.PI/180)} 
+                    y1={y + 6*Math.sin(angle*Math.PI/180)}
+                    x2={x-35 + 10*Math.cos(angle*Math.PI/180)} 
+                    y2={y + 10*Math.sin(angle*Math.PI/180)}
+                    stroke={config.color} 
+                    strokeWidth="2"
+                    opacity="0.6"
+                  />
+                ))}
+              </g>
+            );
+            typeLabel = 'SYSTEM';
+            labelY = y + 8;
+            break;
+
+          case 'decision':
+            shape = (
+              <polygon 
+                points={`${x},${y-32} ${x+40},${y} ${x},${y+32} ${x-40},${y}`}
+                {...baseProps}
+              />
+            );
+            break;
+
+          case 'subprocess':
+            shape = (
+              <g>
+                <rect x={x-60} y={y-35} width="120" height="70" rx="4" {...baseProps} />
+                <rect x={x-50} y={y+18} width="20" height="12" rx="2" fill="none" stroke={config.color} strokeWidth="1.5" />
+                <line x1={x-40} y1={y+21} x2={x-40} y2={y+27} stroke={config.color} strokeWidth="1.5" />
+                <line x1={x-47} y1={y+24} x2={x-33} y2={y+24} stroke={config.color} strokeWidth="1.5" />
+              </g>
+            );
+            typeLabel = 'SUBPROCESS';
+            labelY = y + 5;
+            break;
+
+          case 'gateway':
+            const isParallel = activity.gatewayType?.includes('parallel');
+            shape = (
+              <g>
+                <polygon 
+                  points={`${x},${y-25} ${x+30},${y} ${x},${y+25} ${x-30},${y}`}
+                  {...baseProps}
+                />
+                {isParallel && (
+                  <g>
+                    <line x1={x-10} y1={y} x2={x+10} y2={y} stroke={config.color} strokeWidth="3" />
+                    <line x1={x} y1={y-10} x2={x} y2={y+10} stroke={config.color} strokeWidth="3" />
+                  </g>
+                )}
+              </g>
+            );
+            break;
+
+          default:
+            shape = <rect x={x-50} y={y-25} width="100" height="50" rx="4" {...baseProps} />;
+        }
+
+        return (
+          <g 
+            onMouseDown={(e) => handleActivityMouseDown(e, activity)}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!connecting) {
+                setSelectedItem(activity);
+                setSelectedType('activity');
+              }
+            }}
+          >
+            {shape}
+            
+            {/* Type label */}
+            {typeLabel && (
+              <text
+                x={x}
+                y={y - 15}
+                textAnchor="middle"
+                fill={config.color}
+                fontSize="8"
+                fontFamily="'JetBrains Mono', monospace"
+                fontWeight="600"
+                style={{ pointerEvents: 'none' }}
+              >
+                {typeLabel}
+              </text>
+            )}
+
+            {/* Name */}
+            <text
+              x={x}
+              y={labelY}
+              textAnchor="middle"
+              fill="#e0e0e0"
+              fontSize="10"
+              fontFamily="'JetBrains Mono', monospace"
+              style={{ pointerEvents: 'none' }}
+            >
+              {activity.name.length > 14 ? activity.name.slice(0, 12) + '..' : activity.name}
+            </text>
+
+            {/* Connection handle (right side) */}
+            {activity.type !== 'event' || activity.eventType !== 'end' ? (
+              <ConnectionHandle 
+                cx={x + (activity.type === 'decision' || activity.type === 'gateway' ? 40 : activity.type === 'event' ? 24 : 55)} 
+                cy={y} 
+              />
+            ) : null}
+          </g>
+        );
+      };
+
+      // ============================================
+      // RENDER CONNECTIONS
+      // ============================================
+
+      const renderConnections = () => {
+        return processModel.connections.map(conn => {
+          const from = getActivityById(conn.from);
+          const to = getActivityById(conn.to);
+          if (!from || !to) return null;
+
+          const connConfig = connectionTypeConfig[conn.type] || connectionTypeConfig.hard;
+          const getOffset = (act, side) => {
+            if (act.type === 'event') return side === 'right' ? 24 : -24;
+            if (act.type === 'decision' || act.type === 'gateway') return side === 'right' ? 40 : -40;
+            if (act.type === 'subprocess') return side === 'right' ? 60 : -60;
+            return side === 'right' ? 55 : -55;
+          };
+
+          const x1 = from.position.x + getOffset(from, 'right');
+          const y1 = from.position.y;
+          const x2 = to.position.x + getOffset(to, 'left');
+          const y2 = to.position.y;
+
+          const midX = (x1 + x2) / 2;
+          const midY = (y1 + y2) / 2;
+          const isSelected = selectedItem?.id === conn.id && selectedType === 'connection';
+
+          return (
+            <g key={conn.id} onClick={(e) => {
+              e.stopPropagation();
+              setSelectedItem(conn);
+              setSelectedType('connection');
+            }} style={{ cursor: 'pointer' }}>
+              <path
+                d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`}
+                fill="none"
+                stroke={isSelected ? '#fff' : connConfig.color}
+                strokeWidth={isSelected ? 3 : 2}
+                strokeDasharray={connConfig.dash}
+                opacity={isSelected ? 1 : 0.7}
+              />
+              <polygon
+                points={`${x2},${y2} ${x2-8},${y2-4} ${x2-8},${y2+4}`}
+                fill={isSelected ? '#fff' : connConfig.color}
+              />
+              {/* Type indicator on line */}
+              <rect
+                x={midX - 16}
+                y={midY - 8}
+                width="32"
+                height="16"
+                rx="3"
+                fill="#0a0a0e"
+                stroke={connConfig.color}
+                strokeWidth="1"
+              />
+              <text
+                x={midX}
+                y={midY + 4}
+                textAnchor="middle"
+                fill={connConfig.color}
+                fontSize="8"
+                fontFamily="'JetBrains Mono', monospace"
+                fontWeight="600"
+              >
+                {connConfig.label.toUpperCase()}
+              </text>
+              {/* Wider click target */}
+              <path
+                d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`}
+                fill="none"
+                stroke="transparent"
+                strokeWidth="15"
+              />
+              {conn.label && (
+                <text
+                  x={midX}
+                  y={midY - 18}
+                  textAnchor="middle"
+                  fill="#888"
+                  fontSize="9"
+                  fontFamily="'JetBrains Mono', monospace"
+                >
+                  {conn.label}
+                </text>
+              )}
+            </g>
+          );
+        });
+      };
+
+      // ============================================
+      // RENDER DATA OBJECTS
+      // ============================================
+
+      const renderDataObjects = () => {
+        if (!showDataObjects) return null;
+
+        return processModel.dataObjects.map(obj => (
+          <g 
+            key={obj.id}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedItem(obj);
+              setSelectedType('dataObject');
+            }}
+            style={{ cursor: 'pointer' }}
+          >
+            <rect
+              x={obj.position.x - 40}
+              y={obj.position.y - 25}
+              width="80"
+              height="50"
+              rx="4"
+              fill={selectedItem?.id === obj.id ? '#ffffff15' : '#ffffff08'}
+              stroke="#444"
+              strokeWidth="1"
+              strokeDasharray="4,2"
+            />
+            <text
+              x={obj.position.x}
+              y={obj.position.y - 5}
+              textAnchor="middle"
+              fontSize="16"
+            >
+              {obj.icon}
+            </text>
+            <text
+              x={obj.position.x}
+              y={obj.position.y + 15}
+              textAnchor="middle"
+              fill="#888"
+              fontSize="8"
+              fontFamily="'JetBrains Mono', monospace"
+            >
+              {obj.name.length > 12 ? obj.name.slice(0, 10) + '..' : obj.name}
+            </text>
+          </g>
+        ));
+      };
+
+      // ============================================
+      // RENDER GOALS HIERARCHY
+      // ============================================
+
+      const renderGoalTree = () => {
+        let yPos = 10;
+        const nodes = [];
+
+        const renderGoal = (goal, depth) => {
+          const config = goalTypeConfig[goal.type];
+          const hasChildren = goal.children?.length > 0;
+          const isExpanded = expandedGoals.includes(goal.id);
+          const isSelected = selectedItem?.id === goal.id && selectedType === 'goal';
+          const x = 8 + depth * 16;
+          const width = 224 - depth * 16;
+
+          nodes.push(
+            <g 
+              key={goal.id}
+              onClick={() => {
+                setSelectedItem(goal);
+                setSelectedType('goal');
+              }}
+              style={{ cursor: 'pointer' }}
+            >
+              <rect
+                x={x}
+                y={yPos}
+                width={width}
+                height="28"
+                rx="4"
+                fill={isSelected ? config.color + '30' : config.bg}
+                stroke={isSelected ? config.color : config.color + '60'}
+                strokeWidth={isSelected ? 2 : 1}
+              />
+              {hasChildren && (
+                <text
+                  x={x + 12}
+                  y={yPos + 18}
+                  fill={config.color}
+                  fontSize="12"
+                  fontWeight="bold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleGoalExpand(goal.id);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {isExpanded ? '−' : '+'}
+                </text>
+              )}
+              <text
+                x={x + (hasChildren ? 24 : 10)}
+                y={yPos + 18}
+                fill="#e0e0e0"
+                fontSize="10"
+                fontFamily="'JetBrains Mono', monospace"
+                style={{ pointerEvents: 'none' }}
+              >
+                {goal.name.length > (18 - depth * 2) ? goal.name.slice(0, 16 - depth * 2) + '..' : goal.name}
+              </text>
+              <rect
+                x={x + width - 36}
+                y={yPos + 6}
+                width="30"
+                height="16"
+                rx="3"
+                fill={config.color + '30'}
+              />
+              <text
+                x={x + width - 21}
+                y={yPos + 17}
+                textAnchor="middle"
+                fill={config.color}
+                fontSize="7"
+                fontFamily="'JetBrains Mono', monospace"
+                fontWeight="600"
+              >
+                {config.label}
+              </text>
+            </g>
+          );
+
+          yPos += 34;
+
+          if (hasChildren && isExpanded) {
+            goal.children.forEach(childId => {
+              const child = getGoalById(childId);
+              if (child) renderGoal(child, depth + 1);
+            });
+          }
+        };
+
+        // Render hierarchy by type
+        const outcomes = processModel.goals.filter(g => g.type === 'outcome');
+        outcomes.forEach(o => renderGoal(o, 0));
+
+        // Constraints section
+        const constraints = processModel.goals.filter(g => g.type === 'constraint');
+        if (constraints.length > 0) {
+          yPos += 10;
+          nodes.push(
+            <text key="const-header" x="8" y={yPos + 12} fill="#666" fontSize="9" fontFamily="'JetBrains Mono', monospace">
+              CONSTRAINTS
+            </text>
+          );
+          yPos += 20;
+          constraints.forEach(c => renderGoal(c, 0));
+        }
+
+        // Milestones section  
+        const milestones = processModel.goals.filter(g => g.type === 'milestone');
+        if (milestones.length > 0) {
+          yPos += 10;
+          nodes.push(
+            <text key="mile-header" x="8" y={yPos + 12} fill="#666" fontSize="9" fontFamily="'JetBrains Mono', monospace">
+              MILESTONES
+            </text>
+          );
+          yPos += 20;
+          milestones.forEach(m => renderGoal(m, 0));
+        }
+
+        // Risks section
+        const risks = processModel.goals.filter(g => g.type === 'risk');
+        if (risks.length > 0) {
+          yPos += 10;
+          nodes.push(
+            <text key="risk-header" x="8" y={yPos + 12} fill="#666" fontSize="9" fontFamily="'JetBrains Mono', monospace">
+              RISKS
+            </text>
+          );
+          yPos += 20;
+          risks.forEach(r => renderGoal(r, 0));
+        }
+
+        // Assumptions section
+        const assumptions = processModel.goals.filter(g => g.type === 'assumption');
+        if (assumptions.length > 0) {
+          yPos += 10;
+          nodes.push(
+            <text key="assume-header" x="8" y={yPos + 12} fill="#666" fontSize="9" fontFamily="'JetBrains Mono', monospace">
+              ASSUMPTIONS
+            </text>
+          );
+          yPos += 20;
+          assumptions.forEach(a => renderGoal(a, 0));
+        }
+
+        return nodes;
+      };
+
+      // ============================================
+      // DETAIL PANEL
+      // ============================================
+
+      const EditField = ({ label, value, onChange, multiline, placeholder }) => (
+        <div style={{ marginBottom: '12px' }}>
+          <label style={{
+            display: 'block',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '9px',
+            color: '#666',
+            marginBottom: '4px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>{label}</label>
+          {multiline ? (
+            <textarea
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              style={{
+                width: '100%',
+                minHeight: '80px',
+                padding: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '4px',
+                color: '#e0e0e0',
+                fontSize: '11px',
+                fontFamily: "'JetBrains Mono', monospace",
+                resize: 'vertical'
+              }}
+            />
+          ) : (
+            <input
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              style={{
+                width: '100%',
+                padding: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '4px',
+                color: '#e0e0e0',
+                fontSize: '11px'
+              }}
+            />
+          )}
+        </div>
+      );
+
+      const TagsField = ({ label, tags, onChange, color }) => {
+        const [input, setInput] = useState('');
+        const addTag = () => {
+          if (input.trim() && !tags?.includes(input.trim())) {
+            onChange([...(tags || []), input.trim()]);
+            setInput('');
+          }
+        };
+        return (
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{
+              display: 'block',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '9px',
+              color: '#666',
+              marginBottom: '4px',
+              textTransform: 'uppercase'
+            }}>{label}</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+              {(tags || []).map((tag, i) => (
+                <span key={i} style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  background: color + '25',
+                  color: color,
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontFamily: "'JetBrains Mono', monospace"
+                }}>
+                  {tag}
+                  <span 
+                    onClick={() => onChange(tags.filter((_, j) => j !== i))}
+                    style={{ cursor: 'pointer', opacity: 0.7 }}
+                  >×</span>
+                </span>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addTag()}
+                placeholder="Add..."
+                style={{
+                  flex: 1,
+                  padding: '6px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '4px',
+                  color: '#e0e0e0',
+                  fontSize: '10px'
+                }}
+              />
+              <button onClick={addTag} style={{
+                padding: '6px 10px',
+                background: color + '25',
+                border: 'none',
+                borderRadius: '4px',
+                color: color,
+                cursor: 'pointer'
+              }}>+</button>
+            </div>
+          </div>
+        );
+      };
+
+      const DetailPanel = () => {
+        if (!selectedItem) {
+          return (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#555' }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.4 }}>◎</div>
+              <p>Select an item to view/edit</p>
+              <p style={{ fontSize: '10px', marginTop: '8px', color: '#444' }}>
+                Drag activities to move<br/>
+                Click green handle to connect
+              </p>
+            </div>
+          );
+        }
+
+        if (selectedType === 'goal') {
+          const goal = selectedItem;
+          const config = goalTypeConfig[goal.type];
+
+          return (
+            <div style={{ padding: '14px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '16px',
+                paddingBottom: '12px',
+                borderBottom: `2px solid ${config.color}`
+              }}>
+                <span style={{
+                  padding: '3px 8px',
+                  background: config.color,
+                  color: '#000',
+                  borderRadius: '4px',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                  fontFamily: "'JetBrains Mono', monospace"
+                }}>{config.label}</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#e0e0e0' }}>{goal.name}</span>
+              </div>
+
+              <EditField
+                label="Name"
+                value={goal.name}
+                onChange={(v) => updateGoal(goal.id, { name: v })}
+              />
+
+              <EditField
+                label="Description"
+                value={goal.description}
+                onChange={(v) => updateGoal(goal.id, { description: v })}
+                multiline
+              />
+
+              {(goal.type === 'outcome' || goal.type === 'objective' || goal.type === 'requirement') && (
+                <TagsField
+                  label="Success Criteria"
+                  tags={goal.successCriteria}
+                  onChange={(v) => updateGoal(goal.id, { successCriteria: v })}
+                  color="#10b981"
+                />
+              )}
+
+              {goal.type === 'milestone' && (
+                <TagsField
+                  label="Pass Criteria"
+                  tags={goal.passCriteria}
+                  onChange={(v) => updateGoal(goal.id, { passCriteria: v })}
+                  color="#f59e0b"
+                />
+              )}
+
+              {goal.type === 'risk' && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '9px', color: '#666', marginBottom: '4px' }}>LIKELIHOOD</label>
+                      <select
+                        value={goal.likelihood || 'medium'}
+                        onChange={(e) => updateGoal(goal.id, { likelihood: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '6px',
+                          background: '#1a1a22',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          color: '#e0e0e0',
+                          fontSize: '11px'
+                        }}
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '9px', color: '#666', marginBottom: '4px' }}>IMPACT</label>
+                      <select
+                        value={goal.impact || 'medium'}
+                        onChange={(e) => updateGoal(goal.id, { impact: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '6px',
+                          background: '#1a1a22',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          color: '#e0e0e0',
+                          fontSize: '11px'
+                        }}
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+                  </div>
+                  <EditField
+                    label="Mitigation"
+                    value={goal.mitigation}
+                    onChange={(v) => updateGoal(goal.id, { mitigation: v })}
+                    multiline
+                  />
+                </>
+              )}
+
+              {goal.linkedActivity && (
+                <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>LINKED ACTIVITY</div>
+                  <div 
+                    style={{ fontSize: '12px', color: '#3b82f6', cursor: 'pointer' }}
+                    onClick={() => {
+                      const act = getActivityById(goal.linkedActivity);
+                      if (act) {
+                        setSelectedItem(act);
+                        setSelectedType('activity');
+                      }
+                    }}
+                  >
+                    → {getActivityById(goal.linkedActivity)?.name}
+                  </div>
+                </div>
+              )}
+
+              {/* Add child goal button (for objectives) */}
+              {(goal.type === 'outcome' || goal.type === 'objective') && (
+                <button
+                  onClick={() => addGoal('requirement', goal.id)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'rgba(139,92,246,0.15)',
+                    border: '1px solid rgba(139,92,246,0.3)',
+                    borderRadius: '6px',
+                    color: '#8b5cf6',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    marginTop: '12px'
+                  }}
+                >+ Add Child Requirement</button>
+              )}
+
+              {/* Delete button */}
+              {goal.id !== 'outcome_1' && (
+                <button
+                  onClick={() => deleteGoal(goal.id)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'rgba(239,68,68,0.15)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: '6px',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    marginTop: '8px'
+                  }}
+                >Delete Goal</button>
+              )}
+            </div>
+          );
+        }
+
+        if (selectedType === 'activity') {
+          const activity = selectedItem;
+          const config = activityTypeConfig[activity.type];
+
+          return (
+            <div style={{ padding: '14px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '16px',
+                paddingBottom: '12px',
+                borderBottom: `2px solid ${config.color}`
+              }}>
+                <span style={{
+                  padding: '3px 8px',
+                  background: config.color,
+                  color: '#000',
+                  borderRadius: '4px',
+                  fontSize: '9px',
+                  fontWeight: '600',
+                  fontFamily: "'JetBrains Mono', monospace"
+                }}>{activity.type.toUpperCase()}</span>
+              </div>
+
+              <EditField
+                label="Name"
+                value={activity.name}
+                onChange={(v) => updateActivity(activity.id, { name: v })}
+              />
+
+              <EditField
+                label="Description"
+                value={activity.description}
+                onChange={(v) => updateActivity(activity.id, { description: v })}
+                multiline
+              />
+
+              {activity.type === 'human' && (
+                <>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '9px', color: '#666', marginBottom: '4px' }}>TASK TYPE</label>
+                    <select
+                      value={activity.taskType || 'execute'}
+                      onChange={(e) => updateActivity(activity.id, { taskType: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        background: '#1a1a22',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '4px',
+                        color: '#e0e0e0',
+                        fontSize: '11px'
+                      }}
+                    >
+                      <option value="decide">Decide / Approve</option>
+                      <option value="review">Review</option>
+                      <option value="assign">Assign</option>
+                      <option value="execute">Execute</option>
+                      <option value="discuss">Discuss</option>
+                    </select>
+                  </div>
+                  <EditField
+                    label="Assignment (Role/User)"
+                    value={activity.assignment?.value}
+                    onChange={(v) => updateActivity(activity.id, { assignment: { type: 'role', value: v } })}
+                    placeholder="e.g., AE Manager"
+                  />
+                </>
+              )}
+
+              {(activity.type === 'agent' || activity.type === 'human' || activity.type === 'system') && activity.timing && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '6px', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '8px' }}>TIMING</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <EditField
+                      label="Duration"
+                      value={activity.timing.estimatedDuration}
+                      onChange={(v) => updateActivity(activity.id, { timing: { ...activity.timing, estimatedDuration: v } })}
+                    />
+                    <EditField
+                      label="SLA"
+                      value={activity.timing.sla}
+                      onChange={(v) => updateActivity(activity.id, { timing: { ...activity.timing, sla: v } })}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {activity.type === 'agent' && (
+                <>
+                  <TagsField
+                    label="Data Inputs"
+                    tags={activity.dataInputs}
+                    onChange={(v) => updateActivity(activity.id, { dataInputs: v })}
+                    color="#3b82f6"
+                  />
+                  <TagsField
+                    label="Data Outputs"
+                    tags={activity.dataOutputs}
+                    onChange={(v) => updateActivity(activity.id, { dataOutputs: v })}
+                    color="#10b981"
+                  />
+                  <EditField
+                    label="Agent Prompt"
+                    value={activity.agentPrompt}
+                    onChange={(v) => updateActivity(activity.id, { agentPrompt: v })}
+                    multiline
+                    placeholder="Instructions for the agent..."
+                  />
+                </>
+              )}
+
+              {activity.type === 'subprocess' && (
+                <EditField
+                  label="Subprocess Description"
+                  value={activity.subProcessDescription}
+                  onChange={(v) => updateActivity(activity.id, { subProcessDescription: v })}
+                  multiline
+                />
+              )}
+
+              {activity.type === 'event' && activity.signals && (
+                <TagsField
+                  label="Signal Types"
+                  tags={activity.signals}
+                  onChange={(v) => updateActivity(activity.id, { signals: v })}
+                  color="#ec4899"
+                />
+              )}
+
+              {activity.linkedGoal && (
+                <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>LINKED GOAL</div>
+                  <div 
+                    style={{ fontSize: '12px', color: '#8b5cf6', cursor: 'pointer' }}
+                    onClick={() => {
+                      const goal = getGoalById(activity.linkedGoal);
+                      if (goal) {
+                        setSelectedItem(goal);
+                        setSelectedType('goal');
+                      }
+                    }}
+                  >
+                    → {getGoalById(activity.linkedGoal)?.name}
+                  </div>
+                </div>
+              )}
+
+              {/* Delete button */}
+              {activity.id !== 'event_start' && activity.id !== 'event_end' && (
+                <button
+                  onClick={() => deleteActivity(activity.id)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'rgba(239,68,68,0.15)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: '6px',
+                    color: '#ef4444',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    marginTop: '16px'
+                  }}
+                >Delete Activity</button>
+              )}
+            </div>
+          );
+        }
+
+        if (selectedType === 'connection') {
+          const conn = selectedItem;
+          const connConfig = connectionTypeConfig[conn.type] || connectionTypeConfig.hard;
+          return (
+            <div style={{ padding: '14px' }}>
+              <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: `2px solid ${connConfig.color}` }}>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#e0e0e0' }}>Dependency</span>
+              </div>
+              <div style={{ 
+                padding: '10px', 
+                background: 'rgba(255,255,255,0.05)', 
+                borderRadius: '6px',
+                marginBottom: '16px',
+                fontSize: '11px'
+              }}>
+                {getActivityById(conn.from)?.name} → {getActivityById(conn.to)?.name}
+              </div>
+              
+              {/* Dependency Type Selector */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '9px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>
+                  Dependency Type
+                </label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {Object.entries(connectionTypeConfig).map(([type, config]) => (
+                    <button
+                      key={type}
+                      onClick={() => updateConnection(conn.id, { type })}
+                      style={{
+                        flex: 1,
+                        padding: '10px 8px',
+                        background: conn.type === type ? config.color : 'transparent',
+                        border: `2px solid ${config.color}`,
+                        borderRadius: '6px',
+                        color: conn.type === type ? '#000' : config.color,
+                        cursor: 'pointer',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: '10px',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {config.label}
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: '10px', color: '#666', marginTop: '6px' }}>
+                  {connConfig.description}
+                </p>
+              </div>
+
+              <EditField
+                label="Reason"
+                value={conn.reason}
+                onChange={(v) => updateConnection(conn.id, { reason: v })}
+                multiline
+                placeholder="Why does this dependency exist?"
+              />
+
+              {(conn.type === 'soft' || conn.type === 'informational') && (
+                <>
+                  <EditField
+                    label="Risk if Proceeded Without"
+                    value={conn.riskIfProceeded}
+                    onChange={(v) => updateConnection(conn.id, { riskIfProceeded: v })}
+                    multiline
+                    placeholder="What could go wrong?"
+                  />
+                  <EditField
+                    label="Default Assumption"
+                    value={conn.defaultAssumption}
+                    onChange={(v) => updateConnection(conn.id, { defaultAssumption: v })}
+                    placeholder="If proceeding early, assume..."
+                  />
+                </>
+              )}
+
+              <EditField
+                label="Label (optional)"
+                value={conn.label}
+                onChange={(v) => updateConnection(conn.id, { label: v })}
+                placeholder="e.g., 'Yes', 'Approved'"
+              />
+
+              <button
+                onClick={() => deleteConnection(conn.id)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: 'rgba(239,68,68,0.2)',
+                  border: '1px solid rgba(239,68,68,0.4)',
+                  borderRadius: '6px',
+                  color: '#ef4444',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  marginTop: '12px'
+                }}
+              >Delete Connection</button>
+            </div>
+          );
+        }
+
+        if (selectedType === 'dataObject') {
+          return (
+            <div style={{ padding: '14px' }}>
+              <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #444' }}>
+                <span style={{ fontSize: '20px', marginRight: '8px' }}>{selectedItem.icon}</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#e0e0e0' }}>{selectedItem.name}</span>
+              </div>
+              <p style={{ fontSize: '12px', color: '#aaa', lineHeight: '1.5' }}>{selectedItem.description}</p>
+              {selectedItem.linkedActivities && (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '6px' }}>USED BY</div>
+                  {selectedItem.linkedActivities.map(actId => (
+                    <div 
+                      key={actId}
+                      style={{ fontSize: '11px', color: '#3b82f6', cursor: 'pointer', marginBottom: '4px' }}
+                      onClick={() => {
+                        const act = getActivityById(actId);
+                        if (act) {
+                          setSelectedItem(act);
+                          setSelectedType('activity');
+                        }
+                      }}
+                    >
+                      → {getActivityById(actId)?.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return null;
+      };
+
+      // ============================================
+      // EXPORT / IMPORT
+      // ============================================
+
+      const exportModel = () => {
+        const json = JSON.stringify(processModel, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${processModel.metadata.name.replace(/\s+/g, '_')}.json`;
+        a.click();
+      };
+
+      const importModel = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const model = JSON.parse(evt.target.result);
+              setProcessModel(model);
+              setSelectedItem(null);
+              setSelectedType(null);
+            } catch (err) {
+              alert('Invalid JSON file');
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      };
+
+      // Escape key cancels connecting
+      useEffect(() => {
+        const handleKey = (e) => {
+          if (e.key === 'Escape') setConnecting(null);
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+      }, []);
+
+      // ============================================
+      // RENDER
+      // ============================================
+
+      return (
+        <div style={{
+          height: '100vh',
+          width: '100vw',
+          background: '#0a0a0e',
+          color: '#e0e0e0',
+          fontFamily: "'Inter', sans-serif",
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: '10px 16px',
+            background: '#0f0f14',
+            borderBottom: '1px solid #1a1a22',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '10px',
+            flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h1 style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '15px',
+                fontWeight: '600',
+                margin: 0,
+                background: 'linear-gradient(90deg, #10b981, #3b82f6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>Process Architect</h1>
+              <input
+                value={processModel.metadata.name}
+                onChange={(e) => setProcessModel(prev => ({
+                  ...prev,
+                  metadata: { ...prev.metadata, name: e.target.value }
+                }))}
+                style={{
+                  padding: '5px 10px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '4px',
+                  color: '#e0e0e0',
+                  fontSize: '12px',
+                  width: '180px'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {/* Add Activity Dropdown */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => {
+                    const menu = document.getElementById('add-activity-menu');
+                    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+                  }}
+                  style={{
+                    padding: '5px 10px',
+                    background: 'rgba(16,185,129,0.2)',
+                    border: '1px solid rgba(16,185,129,0.4)',
+                    borderRadius: '4px',
+                    color: '#10b981',
+                    cursor: 'pointer',
+                    fontSize: '10px'
+                  }}
+                >+ Activity ▼</button>
+                <div 
+                  id="add-activity-menu"
+                  style={{
+                    display: 'none',
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '4px',
+                    background: '#1a1a22',
+                    border: '1px solid #333',
+                    borderRadius: '6px',
+                    padding: '4px',
+                    zIndex: 1000,
+                    minWidth: '120px'
+                  }}
+                >
+                  {['human', 'agent', 'system', 'decision', 'subprocess', 'event', 'gateway'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        addActivity(type);
+                        document.getElementById('add-activity-menu').style.display = 'none';
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: activityTypeConfig[type].color,
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        textAlign: 'left',
+                        fontFamily: "'JetBrains Mono', monospace"
+                      }}
+                      onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseOut={(e) => e.target.style.background = 'transparent'}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add Goal Dropdown */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => {
+                    const menu = document.getElementById('add-goal-menu');
+                    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+                  }}
+                  style={{
+                    padding: '5px 10px',
+                    background: 'rgba(139,92,246,0.2)',
+                    border: '1px solid rgba(139,92,246,0.4)',
+                    borderRadius: '4px',
+                    color: '#8b5cf6',
+                    cursor: 'pointer',
+                    fontSize: '10px'
+                  }}
+                >+ Goal ▼</button>
+                <div 
+                  id="add-goal-menu"
+                  style={{
+                    display: 'none',
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '4px',
+                    background: '#1a1a22',
+                    border: '1px solid #333',
+                    borderRadius: '6px',
+                    padding: '4px',
+                    zIndex: 1000,
+                    minWidth: '130px'
+                  }}
+                >
+                  {['objective', 'requirement', 'constraint', 'milestone', 'risk', 'assumption'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        addGoal(type, type === 'objective' ? 'outcome_1' : null);
+                        document.getElementById('add-goal-menu').style.display = 'none';
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: goalTypeConfig[type].color,
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        textAlign: 'left',
+                        fontFamily: "'JetBrains Mono', monospace"
+                      }}
+                      onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                      onMouseOut={(e) => e.target.style.background = 'transparent'}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ width: '1px', height: '20px', background: '#333' }} />
+
+              <button
+                onClick={() => setShowDataObjects(!showDataObjects)}
+                style={{
+                  padding: '5px 10px',
+                  background: showDataObjects ? 'rgba(59,130,246,0.2)' : 'transparent',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '4px',
+                  color: showDataObjects ? '#3b82f6' : '#888',
+                  cursor: 'pointer',
+                  fontSize: '10px'
+                }}
+              >Data Objects</button>
+              <button onClick={importModel} style={{
+                padding: '5px 10px',
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '4px',
+                color: '#888',
+                cursor: 'pointer',
+                fontSize: '10px'
+              }}>Import</button>
+              <button onClick={exportModel} style={{
+                padding: '5px 10px',
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '4px',
+                color: '#e0e0e0',
+                cursor: 'pointer',
+                fontSize: '10px'
+              }}>Export</button>
+            </div>
+          </div>
+
+          {/* Main */}
+          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+            {/* Goal Panel */}
+            {showGoalPanel && (
+              <div style={{
+                width: '260px',
+                background: '#0c0c10',
+                borderRight: '1px solid #1a1a22',
+                display: 'flex',
+                flexDirection: 'column',
+                flexShrink: 0
+              }}>
+                <div style={{
+                  padding: '10px 12px',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: '9px',
+                  color: '#666',
+                  textTransform: 'uppercase',
+                  borderBottom: '1px solid #1a1a22',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span>Goal Hierarchy</span>
+                  <button 
+                    onClick={() => setShowGoalPanel(false)}
+                    style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '10px' }}
+                  >◀</button>
+                </div>
+                <div style={{ flex: 1, overflow: 'auto', padding: '6px' }}>
+                  <svg width="240" height="900" style={{ display: 'block' }}>
+                    {renderGoalTree()}
+                  </svg>
+                </div>
+              </div>
+            )}
+
+            {!showGoalPanel && (
+              <button
+                onClick={() => setShowGoalPanel(true)}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: '#1a1a22',
+                  border: 'none',
+                  borderRadius: '0 4px 4px 0',
+                  padding: '8px 4px',
+                  color: '#666',
+                  cursor: 'pointer',
+                  zIndex: 100
+                }}
+              >▶</button>
+            )}
+
+            {/* Canvas */}
+            <div
+              style={{
+                flex: 1,
+                background: `
+                  radial-gradient(circle at 50% 50%, #111118 0%, #0a0a0e 100%),
+                  repeating-linear-gradient(0deg, transparent, transparent 29px, #ffffff06 30px),
+                  repeating-linear-gradient(90deg, transparent, transparent 29px, #ffffff06 30px)
+                `,
+                overflow: 'auto',
+                position: 'relative'
+              }}
+              onClick={() => {
+                if (connecting) setConnecting(null);
+              }}
+            >
+              {connecting && (
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  padding: '8px 16px',
+                  background: 'rgba(245,158,11,0.9)',
+                  borderRadius: '4px',
+                  color: '#000',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  zIndex: 100
+                }}>
+                  Click target activity to connect • ESC to cancel
+                </div>
+              )}
+              <svg 
+                ref={svgRef}
+                width="1200" 
+                height="500" 
+                style={{ display: 'block', minWidth: '100%', minHeight: '100%' }}
+              >
+                {renderConnections()}
+                {renderDataObjects()}
+                {processModel.activities.map(activity => (
+                  <ActivityShape
+                    key={activity.id}
+                    activity={activity}
+                    isSelected={selectedItem?.id === activity.id && selectedType === 'activity'}
+                  />
+                ))}
+              </svg>
+            </div>
+
+            {/* Detail Panel */}
+            <div style={{
+              width: '300px',
+              background: '#0c0c10',
+              borderLeft: '1px solid #1a1a22',
+              display: 'flex',
+              flexDirection: 'column',
+              flexShrink: 0
+            }}>
+              <div style={{
+                padding: '10px 12px',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '9px',
+                color: '#666',
+                textTransform: 'uppercase',
+                borderBottom: '1px solid #1a1a22'
+              }}>Details</div>
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <DetailPanel />
+              </div>
+              
+              {/* Legend */}
+              <div style={{
+                padding: '10px 12px',
+                borderTop: '1px solid #1a1a22',
+                background: '#08080a',
+                fontSize: '9px'
+              }}>
+                <div style={{ color: '#555', marginBottom: '6px', fontFamily: "'JetBrains Mono', monospace" }}>ACTIVITIES</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '10px' }}>
+                  {Object.entries(activityTypeConfig).map(([type, config]) => (
+                    <div key={type} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: type === 'event' ? '50%' : '2px', background: config.color }} />
+                      <span style={{ color: '#666' }}>{type}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ color: '#555', marginBottom: '6px', fontFamily: "'JetBrains Mono', monospace" }}>DEPENDENCIES</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {Object.entries(connectionTypeConfig).map(([type, config]) => (
+                    <div key={type} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="30" height="8">
+                        <line x1="0" y1="4" x2="30" y2="4" stroke={config.color} strokeWidth="2" strokeDasharray={config.dash} />
+                      </svg>
+                      <span style={{ color: config.color }}>{config.label}</span>
+                      <span style={{ color: '#555', fontSize: '8px' }}>- {config.description.split(' - ')[0]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<ProcessArchitect />);
+  </script>
+</body>
+</html>
